@@ -1,28 +1,7 @@
 #include <iostream>
 #include "HContainers.hpp"
-#include <chrono>
-struct Timer
-{
-	std::chrono::time_point<std::chrono::high_resolution_clock> start_point;
 
-	const char* message;
-
-	Timer(const char* _message) : message(_message)
-	{
-		start_point = std::chrono::high_resolution_clock::now();
-	}
-
-	~Timer()
-	{
-		using namespace std::chrono;
-		auto end_point = high_resolution_clock::now();
-		auto start = time_point_cast<microseconds>(start_point).time_since_epoch().count();
-		auto end = time_point_cast<microseconds>(end_point).time_since_epoch().count();
-		auto _duration = end - start;
-		float ms = _duration * 0.001;
-		std::cout << message << ms << "ms" << std::endl;
-	}
-};
+using namespace HS;
 
 struct Test
 {
@@ -92,7 +71,7 @@ int main()
 		std::cout << heap[i].a << std::endl;
 	}
 	
-	Queue<int> queue = Queue<int>(8);
+	Queue<int> queue = Queue<int>(4);
 	queue.Enqueue(1);
 	queue.Enqueue(2);
 	queue.Enqueue(3);
@@ -102,7 +81,7 @@ int main()
 	{
 		std::cout << queue.Dequeue() << std::endl;
 	}
-	Stack<int> stack = Stack<int>();
+	Stack<int> stack = Stack<int>(2);
 	stack.Push(1);
 	stack.Push(2);
 	stack.Push(3);
