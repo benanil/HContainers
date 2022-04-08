@@ -1,4 +1,4 @@
-Plain data structured containers:
+Lightweight plain data structures containers:
 * Linked List
 * Array List (std::vector functionality)
 * Priority Queue 
