@@ -10,7 +10,7 @@
                         const T* cbegin() const { return ptr; }					               \
                         const T* cend() const { return ptr + size; }				           \
                         T GetLast() { return ptr[size - 1]; }                                  \
-                        T GetFirst() { return ptr[0]; }                                        \
+                        T GetFirst(){ return ptr[0]; }                                        \
 					    void Clear()  { std::_Fill_zero_memset(ptr, capacity); size = 0; }
 
 namespace HS
@@ -382,10 +382,10 @@ namespace HS
 			AddRec(rootNode, value);
 			++size;
 		}
-		void Add(Node* node) {
+		void AddNode(Node* node) {
 			if (!node || node == rootNode) return;
 			if (!rootNode) { rootNode = node; size = 1; return; }
-			AddRec(rootNode, node->data);
+			AddNodeRec(rootNode, node);
 			++size;
 		}
 
@@ -424,12 +424,12 @@ namespace HS
 			free(nodeArray);
 			return result;
 		}
-
+		// traverse all nodes
 		void Iterate(IterateFunc iterateFunc) const
 		{
 			IterateRec(iterateFunc, rootNode);
 		}
-
+		// traverse all nodes
 		template<class UserClass>
 		void IterateClass(ClassIterator<UserClass> iterator) const
 		{
@@ -440,21 +440,26 @@ namespace HS
 			FindNodeRecord searchRecord = FindNodeByValueWithParentRec(rootNode, nullptr, value);
 			if (searchRecord.success)
 			{
+				if (searchRecord.node == searchRecord.parent->left)  searchRecord.parent->left = nullptr;
+				else/*searchRecord.node==searchRecord.parent->right*/ searchRecord.parent->right = nullptr;
+				
 				if (searchRecord.parent) {
-					AddRec(searchRecord.parent, searchRecord.node->left); 
-					AddRec(searchRecord.parent, searchRecord.node->right); 
+					AddNodeRec(searchRecord.parent, searchRecord.node->left); 
+					AddNodeRec(searchRecord.parent, searchRecord.node->right); 
 				}
 				else if (searchRecord.node == rootNode)
 				{
 					if (searchRecord.node->right) {
 						rootNode = searchRecord.node->right;
-						Add(searchRecord.node->left);
+						AddNodeRec(searchRecord.parent, searchRecord.node->left);
 					}
-					else rootNode = searchRecord.node->left;
+					else {
+						rootNode = searchRecord.node->left;
+					}
 				}
 				else {
-					Add(searchRecord.node->left);
-					Add(searchRecord.node->right);
+					AddNodeRec(searchRecord.parent, searchRecord.node->left);
+					AddNodeRec(searchRecord.parent, searchRecord.node->right);
 				}
 				delete searchRecord.node;
 				--size;
@@ -498,11 +503,9 @@ namespace HS
 			delete node;
 			node = nullptr;
 		}
-
 		Node* FindNodeParent(Node* node, Node* parent, T value) const
 		{
 			if (!node) return nullptr;
-			
 			if (Compare::Equal<T>(value, node->data)) return parent;
 
 			if (Compare::Less<T>(value, node->data)) {
@@ -532,25 +535,31 @@ namespace HS
 		};
 		FindNodeRecord FindNodeByValueWithParentRec(Node* node, Node* parent, T value) const
 		{
-			if (node)
-			{
-				if (Compare::Equal<T>(value, node->data)) {
-					return { node, parent, true };
-				}
-				if (Compare::Less<T>(value, node->data)) {
-					return FindNodeByValueWithParentRec(node->left, node, value);
-				}
-				else {
-					return FindNodeByValueWithParentRec(node->right, node, value);
-				}
-			}
-			return { nullptr, nullptr, false };
-		}
+			if (!node) return { nullptr, nullptr, false };
 
-		void AddRec(Node* node, Node* value) const {
-			if (value) AddRec(node, value->data);
+			if (Compare::Equal<T>(value, node->data)) {
+				return { node, parent, true };
+			}
+			if (Compare::Less<T>(value, node->data)) {
+				return FindNodeByValueWithParentRec(node->left, node, value);
+			}
+			else {
+				return FindNodeByValueWithParentRec(node->right, node, value);
+			}
+		}
+		void AddNodeRec(Node* node, Node* addNode) const {
+			if (!node || !addNode) return;
+			if (Compare::Less(addNode->data, node->data)) {
+				if (node->left) AddNodeRec(node->left, addNode);
+				else node->left = addNode;
+			}
+			else if (Compare::GreaterEqual(addNode->data, node->data)) {
+				if (node->right) AddNodeRec(node->right, addNode);
+				else node->right = addNode;
+			}
 		}
 		void AddRec(Node* node, T value) const {
+			if (!node) return;
 			if (Compare::Less(value, node->data)) {
 				if (node->left) AddRec(node->left, value);
 				else node->left = new Node(value);
