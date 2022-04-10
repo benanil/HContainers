@@ -1,6 +1,7 @@
 #pragma once
 // #include <stdlib.h>
 #include <cstdlib>
+#include <algorithm>
 
 #define HS_ARRAY_IMPL() T& operator[](int index) { return ptr[index]; }                        \
                         const T& operator[](int index) const { return ptr[index]; }            \
@@ -342,6 +343,16 @@ namespace HS
 			Node* left, * right;
 			Node(T _data) : data(_data), left(nullptr), right(nullptr) {};
 		};
+		typedef void(*IterateFunc)(Node*);
+
+		template<class UserClass> struct ClassIterator
+		{
+			typedef void(*_Func)(UserClass*, Node*);
+			UserClass* userClass;
+			_Func func;
+			inline ClassIterator(UserClass* _class, _Func _func) : userClass(_class), func(_func) {}
+			inline void Invoke(T* data) { func(userClass, data); };
+		};
 	public:
 		~BinaryTree() { Clear(); }
 		BinaryTree() : rootNode(nullptr) {}
@@ -369,6 +380,12 @@ namespace HS
 		void Add(T value) {
 			if (!rootNode) { rootNode = new Node(value); size = 1; return; }
 			AddRec(rootNode, value);
+			++size;
+		}
+		void Add(Node* node) {
+			if (!node || node == rootNode) return;
+			if (!rootNode) { rootNode = node; size = 1; return; }
+			AddRec(rootNode, node->data);
 			++size;
 		}
 
@@ -403,36 +420,51 @@ namespace HS
 				}
 				leafCount = newLeafCount;
 			}
-
+			std::reverse(result, result + size); 
 			free(nodeArray);
 			return result;
+		}
+
+		void Iterate(IterateFunc iterateFunc) const
+		{
+			IterateRec(iterateFunc, rootNode);
+		}
+
+		template<class UserClass>
+		void IterateClass(ClassIterator<UserClass> iterator) const
+		{
+			IterateClassRec(iterator, rootNode);
 		}
 
 		HArrayResult Remove(T value) {
 			FindNodeRecord searchRecord = FindNodeByValueWithParentRec(rootNode, nullptr, value);
 			if (searchRecord.success)
 			{
-				if (searchRecord.parent != nullptr) // has parent
-				{
-					if (searchRecord.parent->left == searchRecord.node) searchRecord.parent->left = nullptr;
-					else searchRecord.parent->right = nullptr;
+				if (searchRecord.parent) {
+					AddRec(searchRecord.parent, searchRecord.node->left); 
+					AddRec(searchRecord.parent, searchRecord.node->right); 
 				}
-				ClearRec(searchRecord.node);
+				else if (searchRecord.node == rootNode)
+				{
+					if (searchRecord.node->right) {
+						rootNode = searchRecord.node->right;
+						Add(searchRecord.node->left);
+					}
+					else rootNode = searchRecord.node->left;
+				}
+				else {
+					Add(searchRecord.node->left);
+					Add(searchRecord.node->right);
+				}
+				delete searchRecord.node;
+				--size;
 				return HArrayResult::Success;
 			}
 			else return HArrayResult::NotFinded;
 		}
 
 		HArrayResult Remove(Node* node) {
-			Node* parent = FindNodeParent(node, nullptr, node->data);
-			if (parent)
-			{
-				if (parent->left == node) parent->left = nullptr;
-				else parent->right = nullptr;
-				ClearRec(node);
-				return HArrayResult::Success;
-			}
-			else return HArrayResult::NotFinded;
+			return Remove(node->data);
 		}
 
 		bool HasValue(T value) const {
@@ -444,11 +476,24 @@ namespace HS
 		void Clear() { ClearRec(rootNode); }
 
 	private:
+		template<class UserClass>
+		void IterateClassRec(ClassIterator<UserClass> iterator, Node* node) const
+		{
+			if (!node) return;
+			iterator.Invoke(node);
+			IterateClassRec(iterator, node->right);
+			IterateClassRec(iterator, node->left);
+		}
+		void IterateRec(IterateFunc iterateFunc, Node* node) const
+		{
+			if (!node) return;
+			IterateRec(iterateFunc, node->right);
+			IterateRec(iterateFunc, node->left);
+		}
 		void ClearRec(Node* node)
 		{
 			if (!node) return;
-			if (node->right) ClearRec(node->left);
-			if (node->left)  ClearRec(node->right);
+			ClearRec(node->left); ClearRec(node->right);
 			--size;
 			delete node;
 			node = nullptr;
@@ -456,33 +501,30 @@ namespace HS
 
 		Node* FindNodeParent(Node* node, Node* parent, T value) const
 		{
-			if (node) {
-				if (Compare::Equal<T>(value, node->data)) return parent;
+			if (!node) return nullptr;
+			
+			if (Compare::Equal<T>(value, node->data)) return parent;
 
-				if (Compare::Less<T>(value, node->data)) {
-					return FindNodeParent(node->left, node, value);
-				}
-				else {
-					return FindNodeParent(node->right, node, value);
-				}
+			if (Compare::Less<T>(value, node->data)) {
+				return FindNodeParent(node->left, node, value);
 			}
-			return nullptr;
+			else {
+				return FindNodeParent(node->right, node, value);
+			}
 		}
 
 		Node* FindNodeByValueRec(Node* node, T value) const
 		{
-			if (node)
-			{
-				if (Compare::Equal<T>(value, node->data)) return node;
+			if (!node) return nullptr;
+			
+			if (Compare::Equal<T>(value, node->data)) return node;
 
-				if (Compare::Less<T>(value, node->data)) {
-					return FindNodeByValueRec(node->left, value);
-				}
-				else {
-					return FindNodeByValueRec(node->right, value);
-				}
+			if (Compare::Less<T>(value, node->data)) {
+				return FindNodeByValueRec(node->left, value);
 			}
-			return nullptr;
+			else {
+				return FindNodeByValueRec(node->right, value);
+			}
 		}
 
 		struct FindNodeRecord {
@@ -495,7 +537,6 @@ namespace HS
 				if (Compare::Equal<T>(value, node->data)) {
 					return { node, parent, true };
 				}
-
 				if (Compare::Less<T>(value, node->data)) {
 					return FindNodeByValueWithParentRec(node->left, node, value);
 				}
@@ -506,6 +547,9 @@ namespace HS
 			return { nullptr, nullptr, false };
 		}
 
+		void AddRec(Node* node, Node* value) const {
+			if (value) AddRec(node, value->data);
+		}
 		void AddRec(Node* node, T value) const {
 			if (Compare::Less(value, node->data)) {
 				if (node->left) AddRec(node->left, value);
@@ -640,6 +684,11 @@ namespace HS
 			std::memset(ptr, 0, sizeof(T) * capacity);
 			rear = front = 0;
 		}
+
+		T* begin() { return ptr + rear;  }
+		T* end()   { return ptr + front; }
+		const T* cbegin() const { return ptr + rear; }
+		const T* cend()   const { return ptr + front; }
 
 		void Enqueue(T value) {
 			if (front + 1 >= capacity)

@@ -10,7 +10,7 @@ struct Test
 };
 
 // these functions required for binary tree and priority queue
-namespace Compare
+namespace HS::Compare
 {
 	template<> bool Less(Test a, Test b)  { return a.a < b.a; }
 	template<> bool Equal(Test a, Test b) { return a.a == b.a; }
