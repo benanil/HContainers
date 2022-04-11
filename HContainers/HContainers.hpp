@@ -34,6 +34,24 @@ namespace HS
 	}
 
 	template<typename T>
+	T* BinarySearch(T value, T* begin, int size)
+	{
+		int mid = 0; 
+		int low = 0; int high = size;
+
+		while (low != high)
+		{
+			mid = (low + high) / 2;
+			if (value == begin[mid]) return begin + mid;
+			else if (value > begin[mid])
+				low = mid + 1;
+			else
+				high = mid - 1;
+		}
+		return nullptr;
+	}
+
+	template<typename T>
 	class LinkedList
 	{
 	public:
@@ -81,7 +99,7 @@ namespace HS
 		_Template void AddFront(Derived data)
 		{
 			Node* newNode = nullptr;
-			if constexpr (std::is_pointer<T>())
+			if constexpr (std::is_pointer<T>() )
 				newNode = new Node(dynamic_cast<T>(data), nullptr);
 			else newNode = new Node(static_cast<T>(data), nullptr);
 
@@ -100,7 +118,7 @@ namespace HS
 		_Template void AddBack(Derived data)
 		{
 			Node oldRoot = rootNode;
-			if constexpr (std::is_pointer<T>())
+			if constexpr (std::is_pointer<T>() || std::is_class<T>())
 				rootNode = new Node(dynamic_cast<T>(data), oldRoot);
 			else rootNode = new Node(static_cast<T>(data), oldRoot);
 			nodeCount++;
@@ -264,10 +282,10 @@ namespace HS
 			if (!node) return;
 			if (node->next != nullptr)
 				IterateRecDestroy(node->next);
-			if constexpr (std::is_pointer<T>()) {
+			if constexpr (std::is_pointer<T>()) { 
 				std::free((void*)node->data);
 				std::free((void*)node);
-			}
+			} // otherwise data is stack allocated no need for free
 		}
 	public:
 		Node* rootNode, * endNode;

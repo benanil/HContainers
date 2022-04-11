@@ -47,19 +47,22 @@ int main()
 	});
 
 	Array<Test> _array = Array<Test>();
-    for (int i = 10; i >= 0; --i) { // generate unsorted array
+    for (int i = 0; i < 10; ++i) { // generate unsorted array
     	_array.Add(Test(i));
     }
+
+	int* binarySearchResult = BinarySearch<int>(2, reinterpret_cast<int*>(_array.ptr), _array.size);
+	if (binarySearchResult)
+		std::cout << "binarySearchResult: " << (*binarySearchResult) << std::endl;
 
 	std::cout << "array queue" << std::endl;
 	
 	for (auto& value : _array) {
 		std::cout << value.a << std::endl;
 	}
-	
 	// qsort(_array.ptr, _array.size, sizeof(Test), Compare::QGreater<int>);
 	XorSort(reinterpret_cast<int*>(_array.ptr), _array.size);
-	
+
 	PriarotyQueue<Test> priorityQueue = PriarotyQueue<Test>(_array.ptr, _array.size);
 	priorityQueue.Add(Test(11));
 	priorityQueue.Add(Test(12));
