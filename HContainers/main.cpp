@@ -3,9 +3,10 @@
 
 using namespace HS;
 
-struct Test
+class Test
 {
-	int a;
+public:
+	int a = 0;
 	Test(int _a) : a(_a) {}
 };
 
@@ -31,6 +32,20 @@ void XorSort(int arr[], int n)
 
 int main()
 {
+	LinkedList<Test> linkedList = LinkedList<Test>(Test(1));
+
+	for (int i = 2; i < 6; ++i)
+	{
+		linkedList.AddFront(Test(i));
+	}
+	
+	linkedList.Reverse();
+	std::cout << "reversed linkedList" << std::endl;
+	
+	linkedList.Iterate([](Test test) {
+		std::cout << test.a << std::endl;
+	});
+
 	Array<Test> _array = Array<Test>();
     for (int i = 10; i >= 0; --i) { // generate unsorted array
     	_array.Add(Test(i));
