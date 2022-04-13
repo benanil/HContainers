@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdlib>
+#include <iostream>
 
 #define HS_ARRAY_IMPL() T& operator[](int index) { return ptr[index]; }                        \
                         const T& operator[](int index) const { return ptr[index]; }            \
@@ -34,7 +35,7 @@ namespace HS
 	}
 
 	template<typename T>
-	T* BinarySearch(T value, T* begin, int size)
+	T* BinarySearch(T value, T* arr, int size)
 	{
 		int mid = 0; 
 		int low = 0; int high = size;
@@ -42,8 +43,8 @@ namespace HS
 		while (low != high)
 		{
 			mid = (low + high) / 2;
-			if (value == begin[mid]) return begin + mid;
-			else if (value > begin[mid])
+			if (value == arr[mid]) return arr + mid;
+			else if (value > arr[mid])
 				low = mid + 1;
 			else
 				high = mid - 1;
@@ -126,11 +127,13 @@ namespace HS
 
 		_Template void Remove(Derived ptr)
 		{
+			if (!rootNode) return;
 			Node* currentNode = rootNode;
 
 			if (Compare::Equal(rootNode->data, ptr) ) {
 				rootNode = rootNode->next;
 				delete currentNode;
+				--nodeCount;
 				currentNode = rootNode;
 				return;
 			}
@@ -140,6 +143,7 @@ namespace HS
 				{
 					Node* removedNode = currentNode->next;
 					currentNode->next = removedNode->next;
+					--nodeCount;
 					delete removedNode;
 					break;
 				}
@@ -359,7 +363,7 @@ namespace HS
 
 		void RemoveAtIndex(int index) {
 			std::memset(&ptr[index], 0, sizeof(T));
-			std::memmove(ptr + index, ptr + index + 1, size * sizeof(T));
+			std::memmove(ptr + index, ptr + index + 1, size - index * sizeof(T));
 			--size;
 		}
 
@@ -377,6 +381,7 @@ namespace HS
 		struct Node {
 			T data;
 			Node* left, * right;
+			Node() : left(nullptr), right(nullptr) {}
 			Node(T _data) : data(_data), left(nullptr), right(nullptr) {};
 		};
 		typedef void(*IterateFunc)(Node*);
@@ -431,7 +436,7 @@ namespace HS
 			v++;
 			return v;
 		}
-
+		// converts to sorted heap
 		T* ConvertToHeap()
 		{
 			T* result = (T*)std::calloc(size, sizeof(T));
@@ -494,8 +499,8 @@ namespace HS
 					}
 				}
 				else {
-					AddNodeRec(searchRecord.parent, searchRecord.node->left);
-					AddNodeRec(searchRecord.parent, searchRecord.node->right);
+					AddNodeRec(rootNode, searchRecord.node->left);
+					AddNodeRec(rootNode, searchRecord.node->right);
 				}
 				delete searchRecord.node;
 				--size;
