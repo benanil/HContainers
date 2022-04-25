@@ -9,12 +9,13 @@
                         const T* cbegin() const { return ptr; }					               \
                         const T* cend() const { return ptr + size; }				           \
                         T GetLast() { return ptr[size - 1]; }                                  \
-                        T GetFirst(){ return ptr[0]; }                                        \
-					    void Clear()  { std::_Fill_zero_memset(ptr, capacity); size = 0; }
+                        T GetFirst(){ return ptr[0]; }                                         \
+						inline bool Any() { return size > 0; }								   \
+					    void Clear()  { std::memset(ptr, 0, capacity * sizeof(T)); size = 0; }
 
 namespace HS
 {
-
+	
 	enum class HArrayResult : int
 	{
 		None, Success, Fail, IndexBoundsOutOfArray, NotFinded, Size0
@@ -24,6 +25,7 @@ namespace HS
 	{
 		template<typename T> bool Less(T a, T b) { return a < b; }
 		template<typename T> bool Equal(T a, T b) { return a == b; }
+		template<typename T> bool NotEqual(T a, T b) { return !Equal(a,b); }
 		template<typename T> bool Greater(T a, T b) { return !Less(a, b) && !Equal(a, b); }
 		template<typename T> bool GreaterEqual(T a, T b) { return !Less(a, b); }
 		template<typename T> bool LessEqual(T a, T b) { return Less(a, b) && Equal(a, b); }
@@ -81,8 +83,7 @@ namespace HS
 		// size must bigger than 0
 		LinkedList(T* begin, int size) : rootNode(new Node(*begin)), endNode(new Node(*(begin + size - 1))), nodeCount(size)
 		{
-			T* end = begin + size;
-			for (T* end = begin + size - 1, ++begin; begin < end; ++begin) AddBack(*begin);
+			for (T* end = begin + size - 1; begin < end; ++begin) AddBack(*begin);
 		}
 
 		~LinkedList() { IterateRecDestroy(rootNode); }
@@ -94,8 +95,9 @@ namespace HS
 			return FindDataByIndexRec(rootNode, index, startIndex);
 		}
 
-		#define _Template template<typename Derived, typename std::enable_if < \
-			std::is_base_of<T, Derived>{} || std::is_same<T, Derived>{}, bool > ::type = true >
+		// #define _Template template<typename Derived, typename std::enable_if < \
+		// 	std::is_base_of<T, Derived>{} || std::is_same<T, Derived>{}, bool > ::type = true >
+		#define _Template template<typename Derived>
 
 		_Template void AddFront(Derived data)
 		{
@@ -175,7 +177,7 @@ namespace HS
 		// removes first node(root node)
 		T RemoveBack()
 		{
-			if (!rootNode) return nullptr;
+			if (!rootNode) return 0;
 			T oldRootNodeData = rootNode->data;
 			Node* oldNode = rootNode;
 			--nodeCount;
@@ -309,6 +311,16 @@ namespace HS
 
 		// initialize operator[] begin(), end(), GetFirst(), GetLast(), Clear()
 		HS_ARRAY_IMPL()
+
+		void Reserve(int _size)
+		{
+			if (_size >= capacity)
+			{
+				capacity = _size;
+				ptr = (T*)std::realloc(ptr, capacity * sizeof(T));
+				std::memset(ptr + capacity - 32, 0, sizeof(T) * 32); // clear generated new area
+			}
+		}
 
 		void Add(T value) {
 
@@ -461,7 +473,6 @@ namespace HS
 				}
 				leafCount = newLeafCount;
 			}
-			std::reverse(result, result + size); 
 			free(nodeArray);
 			return result;
 		}
@@ -549,7 +560,7 @@ namespace HS
 			if (!node) return nullptr;
 			if (Compare::Equal<T>(value, node->data)) return parent;
 
-			if (Compare::Less<T>(value, node->data)) {
+			if (Compare::Greater<T>(value, node->data)) {
 				return FindNodeParent(node->left, node, value);
 			}
 			else {
@@ -563,7 +574,7 @@ namespace HS
 			
 			if (Compare::Equal<T>(value, node->data)) return node;
 
-			if (Compare::Less<T>(value, node->data)) {
+			if (Compare::Greater<T>(value, node->data)) {
 				return FindNodeByValueRec(node->left, value);
 			}
 			else {
@@ -581,7 +592,7 @@ namespace HS
 			if (Compare::Equal<T>(value, node->data)) {
 				return { node, parent, true };
 			}
-			if (Compare::Less<T>(value, node->data)) {
+			if (Compare::Greater<T>(value, node->data)) {
 				return FindNodeByValueWithParentRec(node->left, node, value);
 			}
 			else {
@@ -590,22 +601,22 @@ namespace HS
 		}
 		void AddNodeRec(Node* node, Node* addNode) const {
 			if (!node || !addNode) return;
-			if (Compare::Less(addNode->data, node->data)) {
+			if (Compare::Greater(addNode->data, node->data)) {
 				if (node->left) AddNodeRec(node->left, addNode);
 				else node->left = addNode;
 			}
-			else if (Compare::GreaterEqual(addNode->data, node->data)) {
+			else if (Compare::LessEqual(addNode->data, node->data)) {
 				if (node->right) AddNodeRec(node->right, addNode);
 				else node->right = addNode;
 			}
 		}
 		void AddRec(Node* node, T value) const {
 			if (!node) return;
-			if (Compare::Less(value, node->data)) {
+			if (Compare::Greater(value, node->data)) {
 				if (node->left) AddRec(node->left, value);
 				else node->left = new Node(value);
 			}
-			else if (Compare::GreaterEqual(value, node->data)) {
+			else if (Compare::LessEqual(value, node->data)) {
 				if (node->right) AddRec(node->right, value);
 				else node->right = new Node(value);
 			}
@@ -740,6 +751,8 @@ namespace HS
 		const T* cbegin() const { return ptr + rear; }
 		const T* cend()   const { return ptr + front; }
 
+		inline bool Any() { return GetSize() > 0; }
+
 		void Enqueue(T value) {
 			if (front + 1 >= capacity)
 			{
@@ -791,7 +804,7 @@ namespace HS
 
 	public:
 		T* ptr;
-		int GetSize() { return front - rear; }
+		inline int GetSize() { return front - rear; }
 	private:
 		int capacity;
 		int front = 0;

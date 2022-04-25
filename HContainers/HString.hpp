@@ -22,7 +22,7 @@ namespace HS
 			capacity(other.capacity),
 			ptr((char*)std::calloc(capacity, sizeof(char)))
 		{
-			std::memcpy(ptr, other.ptr, size * sizeof(char));
+			std::memcpy(ptr, other.ptr, size);
 		}
 		// move constructor 
 		String(const String&& other) noexcept
@@ -54,13 +54,14 @@ namespace HS
 
 		String(char* _ptr)
 			: size(std::strlen(_ptr)),
-			ptr((char*)std::calloc(capacity, sizeof(char))),
+			ptr(_ptr),//ptr((char*)std::calloc(capacity, sizeof(char))),
 			capacity(size + 32)
 		{
-			std::memcpy(ptr, _ptr, size);
+			// std::memcpy(ptr, _ptr, size);
 		}
 
 		bool operator == (String b) { return Compare(*this, b); }
+		bool operator != (String b) { return !Compare(*this, b); }
 
 		char operator[](int index) const { return ptr[index]; }
 
@@ -79,10 +80,8 @@ namespace HS
 		void Reserve(int size)
 		{
 			if (size > capacity) {
-				char* old = ptr;
-				ptr = (char*)std::malloc(size);
 				capacity = size;
-				std::free(old);
+				ptr = (char*)std::realloc(ptr, capacity);
 			}
 		}
 
@@ -94,18 +93,20 @@ namespace HS
 			const int findIndex = FindIndex(value);
 			if (findIndex == -1) return StrResult::NotFinded;
 			CapacityCheck(1);
-			std::memmove(ptr + findIndex + 1, ptr + findIndex, 1);
+			std::memmove(ptr + findIndex + 1, ptr + findIndex, size - findIndex);
 			ptr[findIndex] = value;
 			return StrResult::Success;
 		}
-
+		
 		StrResult Insert(int index, const char* value)
 		{
-			if (index > size) return StrResult::IndexOutOfArray;
-			const int len = strlen(value);
+			// https://stackoverflow.com/questions/779875/what-function-is-to-replace-a-substring-from-a-string-in-c
+			const int len = std::strlen(value);
+			if (index > size) index = size;
 			CapacityCheck(len);
-			std::memmove(ptr + index + len, ptr + index, (size - index) + len);
-			std::memcpy(ptr + index, value, len);
+			char* p = ptr + index;
+			std::memmove(p + len, p, size - index);
+			std::memcpy(p, value, len);
 			return StrResult::Success;
 		}
 
@@ -117,9 +118,6 @@ namespace HS
 		String& operator+= (char _char)			  { Append(_char);  return *this; }
 		String& operator+= (const char* _char)	  { Append(_char);  return *this; }
 		String& operator+= (const String& string) { Append(string); return *this; }
-		String& operator+  (char _char)		      { Append(_char);  return *this; }
-		String& operator+  (const char* _char)    { Append(_char);  return *this; }
-		String& operator+  (const String& string) { Append(string); return *this; }
 
 		void Append(char _char)
 		{
@@ -129,10 +127,21 @@ namespace HS
 
 		void Append(const char* _char)
 		{
-			int len = strlen(_char);
+			const int len = strlen(_char);
 			CapacityCheck(len);
-			memcpy(ptr + size, _char, len);
+			#pragma warning(suppress : 4996)
+			std::strncat(ptr + size, _char, len + 1);
 			size += len;
+		}
+
+		String AppendCopy(const char* _char)
+		{
+			const int len = strlen(_char);
+			char* buffer = (char*)std::calloc(len + size, sizeof(char));
+			std::memcpy(buffer, ptr, size);
+		#pragma warning(suppress : 4996)
+			std::strncat(buffer + size, _char, len + 1);
+			return String(buffer);
 		}
 
 		void Append(const String& string) { Append(string.c_str()); }
@@ -161,8 +170,7 @@ namespace HS
 		// Remove
 		StrResult Remove(char _char)
 		{
-			int index = FindIndex(_char);
-			if (index == 0) { Clear(); return StrResult::Success; }
+			const int index = FindIndex(_char);
 			if (index == -1) return StrResult::NotFinded;
 			std::memmove(ptr + index, ptr + index + 1, 1);
 			--size;
@@ -172,10 +180,10 @@ namespace HS
 		StrResult Remove(const char* _char)
 		{
 			const int len = strlen(_char);
-			const int index = FindIndex(_char);
-			if (index == 0) { Clear(); return StrResult::Success; }
-			if (index == -1) return StrResult::NotFinded;
-			std::memmove(ptr + index, ptr + index + len, len - 1);
+			char* start = std::strstr(ptr, _char);
+			if (start == nullptr) return StrResult::NotFinded;
+			std::memset(start, 0, len);
+			std::memmove(start, start + len, len);
 			size -= len;
 			return StrResult::Success;
 		}
@@ -239,7 +247,7 @@ namespace HS
 			return Replace(old.c_str(), _new.c_str());
 		}
 
-		String SubString(int begin, int end)
+		String SubString(int begin, int end) const
 		{
 			if (begin > size) return String();
 			const int buffSize = end - begin;
@@ -249,13 +257,11 @@ namespace HS
 		}
 
 	private:
-		void CapacityCheck(int size)
+		void CapacityCheck(int len)
 		{
-			// +1 for null terminator
-			if (size + size + 1 >= capacity) {
-				capacity += 32;
+			if (size + len + 1 >= capacity) {
+				capacity += 32 + len;
 				ptr = (char*)std::realloc(ptr, capacity);
-				std::memset(ptr + size, 0, capacity - size);
 			}
 		}
 
@@ -278,7 +284,7 @@ namespace HS
 			capacity(other.capacity),
 			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t)))
 		{
-			std::memcpy(ptr, other.ptr, size * sizeof(wchar_t));
+			std::wmemcpy(ptr, other.ptr, size);
 		}
 		// move constructor 
 		WString(const WString&& other) noexcept
@@ -305,19 +311,19 @@ namespace HS
 			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t))),
 			capacity(size + 32)
 		{
-			std::memcpy(ptr, _ptr, size * sizeof(wchar_t));
+			std::wmemcpy(ptr, _ptr, size);
 		}
 
 		WString(wchar_t* _ptr)
 			: size(std::wcslen(_ptr)),
-			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t))),
+			ptr(_ptr),//ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t))),
 			capacity(size + 32)
 		{
-			std::memcpy(ptr, _ptr, size * sizeof(wchar_t));
+			// std::memcpy(ptr, _ptr, size * sizeof(wchar_t));
 		}
 
 		bool operator == (WString b) { return Compare(*this, b); }
-
+		bool operator != (WString b) { return !Compare(*this, b); }
 		wchar_t operator[](int index) const { return ptr[index]; }
 
 		wchar_t* begin() { return ptr; }
@@ -335,10 +341,8 @@ namespace HS
 		void Reserve(int size)
 		{
 			if (size > capacity) {
-				wchar_t* old = ptr;
-				ptr = (wchar_t*)std::malloc(size * sizeof(wchar_t));
 				capacity = size;
-				std::free(old);
+				ptr = (wchar_t*)std::realloc(ptr, capacity * sizeof(wchar_t));
 			}
 		}
 
@@ -350,18 +354,19 @@ namespace HS
 			const int findIndex = FindIndex(value);
 			if (findIndex == -1) return StrResult::NotFinded;
 			CapacityCheck(1);
-			std::memmove(ptr + findIndex + 1, ptr + findIndex, sizeof(wchar_t));
+			std::wmemmove(ptr + findIndex + 1, ptr + findIndex, 1);
 			ptr[findIndex] = value;
 			return StrResult::Success;
 		}
 
 		StrResult Insert(int index, const wchar_t* value)
 		{
-			if (index > size) return StrResult::IndexOutOfArray;
 			const int len = std::wcslen(value);
+			if (index > size) index = size;
 			CapacityCheck(len);
-			std::memmove(ptr + index + len, ptr + index, (size - index) + len * sizeof(wchar_t));
-			std::memcpy(ptr + index, value, len * sizeof(wchar_t));
+			wchar_t* p = ptr + index;
+			std::wmemmove(p + len, p, size - index);
+			std::wmemcpy(p, value, len);
 			return StrResult::Success;
 		}
 
@@ -373,9 +378,6 @@ namespace HS
 		WString& operator+= (char _char)		     { Append(_char);  return *this; }
 		WString& operator+= (const wchar_t* _char)   { Append(_char);  return *this; }
 		WString& operator+= (const WString& string)  { Append(string); return *this; }
-		WString& operator+  (char _char)		     { Append(_char);  return *this; }
-		WString& operator+  (const wchar_t* _char)   { Append(_char);  return *this; }
-		WString& operator+  (const WString& string)  { Append(string); return *this; }
 
 		void Append(wchar_t _char)
 		{
@@ -387,8 +389,19 @@ namespace HS
 		{
 			const int len = std::wcslen(_char);
 			CapacityCheck(len);
-			std::memcpy(ptr + size, _char, len * sizeof(wchar_t));
+		#pragma warning(suppress : 4996)
+			std::wcsncat(ptr, _char, len+1);
 			size += len;
+		}
+
+		WString AppendCopy(const wchar_t* _char) const
+		{
+			const int len = std::wcslen(_char);
+			wchar_t* buffer = (wchar_t*)std::calloc(len + size, sizeof(wchar_t));
+			std:wmemcpy(buffer, ptr, size);
+		#pragma warning(suppress : 4996)
+			std::wcsncat(buffer, _char, len + 1);
+			return WString(buffer);
 		}
 
 		void Append(const WString& string) { Append(string.c_str()); }
@@ -420,7 +433,7 @@ namespace HS
 			int index = FindIndex(_char);
 			if (index == 0) { Clear(); return StrResult::Success; }
 			if (index == -1) return StrResult::NotFinded;
-			std::memmove(ptr + index, ptr + index + 1, sizeof(wchar_t));
+			std::wmemmove(ptr + index, ptr + index + 1, 1);
 			--size;
 			return StrResult::Success;
 		}
@@ -428,10 +441,10 @@ namespace HS
 		StrResult Remove(const wchar_t* _char)
 		{
 			const int len = std::wcslen(_char);
-			const int index = FindIndex(_char);
-			if (index == 0) { Clear(); return StrResult::Success; }
-			if (index == -1) return StrResult::NotFinded;
-			std::memmove(ptr + index, ptr + index + len, len - 1 * sizeof(wchar_t));
+			wchar_t* start = std::wcsstr(ptr, _char);
+			if (start == nullptr) return StrResult::NotFinded;
+			std::wmemset(start, 0, len );
+			std::wmemmove(start, start + len, len);
 			size -= len;
 			return StrResult::Success;
 		}
@@ -451,7 +464,7 @@ namespace HS
 		{
 			if (end > capacity) return StrResult::IndexOutOfArray;
 			const int len = end - start;
-			std::memcpy(ptr + start, cstr, len * sizeof(wchar_t));
+			std::wmemcpy(ptr + start, cstr, len);
 			return StrResult::Success;
 		}
 
@@ -468,8 +481,8 @@ namespace HS
 			const int diff = std::abs(len - oldLen);
 			const int tailLen = std::wcslen(sp + oldLen);
 
-			std::memmove(sp + len, sp + oldLen, tailLen + 1 * sizeof(wchar_t));
-			std::memcpy(sp, _new, len * sizeof(wchar_t));
+			std::wmemmove(sp + len, sp + oldLen, tailLen + 1);
+			std::wmemcpy(sp, _new, len);
 			size += len - oldLen;
 
 			return StrResult::Success;
@@ -502,23 +515,21 @@ namespace HS
 			return String(characters);
 		}
 
-		WString SubString(int begin, int end)
+		WString SubString(int begin, int end) const
 		{
 			if (begin > size) return WString();
 			const int buffLen = end - begin;
 			wchar_t* buffer = (wchar_t*)std::calloc(buffLen + 1, sizeof(wchar_t));
-			std::memcpy(buffer, ptr, buffLen * sizeof(wchar_t));
+			std::wmemcpy(buffer, ptr, buffLen );
 			return WString(buffer);
 		}
 
 	private:
-		void CapacityCheck(int size)
+		void CapacityCheck(int len)
 		{
-			// +1 for null terminator
-			if (size + size + 1 >= capacity) {
-				capacity += 32;
+			if (size + len + 1 >= capacity) {
+				capacity += 32 + len;
 				ptr = (wchar_t*)std::realloc(ptr, capacity * sizeof(wchar_t));
-				std::memset(ptr + size, 0, (capacity - size) * sizeof(wchar_t));
 			}
 		}
 
