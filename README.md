@@ -8,34 +8,35 @@ Single header lightweight plain data structures containers:
 and BinaryTree 
 
 ```cpp
+
 CountryGraph graph = CountryGraph();
 
-VertexIndex handle0 = graph.AddVertex(City("Istanbul", 16'000'000, 3400));
-VertexIndex handle1 = graph.AddVertex(City("Ankara", 6'000'000, 06000));
-VertexIndex handle2 = graph.AddVertex(City("Izmir", 5'000'000, 00000));
-VertexIndex handle3 = graph.AddVertex(City("Bursa", 3'500'000, 00000));
+VertexIndex turk0 = graph.AddVertex(City("Istanbul", 16'000'000, 3400));
+VertexIndex turk1 = graph.AddVertex(City("Ankara"  , 6'000'000, 06000));
+VertexIndex turk2 = graph.AddVertex(City("Izmir"   , 5'000'000, 00000));
+VertexIndex turk3 = graph.AddVertex(City("Bursa"   , 3'500'000, 00000));
 
-graph.ConnectEdge(handle0, handle1, Road("E5", 500, 120));
-graph.ConnectEdge(handle1, handle2, Road("Bla", 400, 120));
-graph.ConnectEdge(handle2, handle3, Road("Bla", 200, 120));
+graph.ConnectEdge(turk0, turk1, Road("E5", 500, 120));
+graph.ConnectEdge(turk1, turk2, Road("Bla", 400, 120));
+graph.ConnectEdge(turk2, turk3, Road("Bla", 200, 120));
 
-VertexIndex secondHandle0 = graph.AddVertex(City("Berlin", 3'600'000, 0000));
-VertexIndex secondHandle1 = graph.AddVertex(City("Cologne", 1'600'000, 0000));
-VertexIndex secondHandle2 = graph.AddVertex(City("Hamburg", 1'800'000, 0000));
+VertexIndex german0 = graph.AddVertex(City("Berlin" , 3'600'000, 0000));
+VertexIndex german1 = graph.AddVertex(City("Cologne", 1'600'000, 0000));
+VertexIndex german2 = graph.AddVertex(City("Hamburg" , 1'800'000, 0000));
 
-graph.ConnectEdge(secondHandle0, secondHandle1, Road("Road Bla", 255, 120));
-graph.ConnectEdge(secondHandle1, secondHandle2, Road("Road Bla", 255, 120));
+graph.ConnectEdge(german0, german1, Road("Road Bla", 255, 120));
+graph.ConnectEdge(german1, german2, Road("Road Bla", 255, 120));
 
 std::cout << "DFS" << std::endl;
 DFS<City, Road> dfs = DFS<City, Road>(&graph);
-dfs.Iterate(secondHandle0, IterateG);
+dfs.Iterate(german0, IterateG);
 std::cout << std::endl;
 std::cout << "BFS" << std::endl;
 BFS<City, Road> bfs = BFS<City, Road>(&graph);
-bfs.Iterate(secondHandle0, IterateG);
+bfs.Iterate(german0, IterateG);
 
 MinimumSpanningTreePrim<City, Road> prim = MinimumSpanningTreePrim<City, Road>(graph);
-CountryGraph::Vertex** primRes = prim.Solve(handle0);
+CountryGraph::Vertex** primRes = prim.Solve(turk0);
 int index = 0;
 
 while (primRes[index] != nullptr) {
