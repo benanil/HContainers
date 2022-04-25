@@ -4,6 +4,7 @@ Single header lightweight plain data structures containers:
 * Priority Queue 
 * Stack
 * Queue
+* Graph
 and BinaryTree 
 
 ```cpp
