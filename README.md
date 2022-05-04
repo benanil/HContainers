@@ -8,6 +8,10 @@ Single header lightweight plain data structures containers:
 and BinaryTree 
 
 ```cpp
+struct City {...}
+struct Road {...}
+
+typedef Graph<City, Road> CountryGraph;
 
 CountryGraph graph = CountryGraph();
 
