@@ -2,7 +2,6 @@
 #include "Core.hpp"
 #include <iosfwd> // for overriding << operator for std::cout
 
-
 namespace HS
 {
 	enum class StrResult
@@ -33,7 +32,7 @@ namespace HS
 		}
 
 		String(int _size)
-			: size(0), capacity(_size),
+			: size(0), capacity(_size + 1),
 			ptr((char*)std::calloc(capacity, sizeof(char)))
 		{
 		}
@@ -59,10 +58,16 @@ namespace HS
 		{
 			// std::memcpy(ptr, _ptr, size);
 		}
-
+		// asign operator
+		String& operator=(const String& right)
+		{
+			CapacityCheck(right.size);
+			std::memcpy(ptr, right.ptr, right.size);
+			size = right.size;
+			return *this;
+		}
 		bool operator == (String b) { return Compare(*this, b); }
 		bool operator != (String b) { return !Compare(*this, b); }
-
 		char operator[](int index) const { return ptr[index]; }
 
 		char* begin() { return ptr; }
@@ -75,6 +80,20 @@ namespace HS
 		static HS_FORCE_INLINE bool Compare(String a, String b)
 		{
 			return a.size == b.size && !strcmp(a.ptr, b.ptr);
+		}
+
+		void Set(const char* str)
+		{
+			Clear();
+			CapacityCheck(strlen(str));
+			std::memcpy(ptr, str, strlen(str));
+		}
+
+		void Set(const String& str)
+		{
+			Clear();
+			CapacityCheck(str.size);
+			std::memcpy(ptr, str.c_str(), str.size);
 		}
 
 		void Reserve(int size)
@@ -256,12 +275,19 @@ namespace HS
 			return String(buffer);
 		}
 
+		friend std::ostream& operator<<(std::ostream& cout, String& wstr) {
+			return cout << wstr.c_str();
+		}
+
 	private:
 		void CapacityCheck(int len)
 		{
 			if (size + len + 1 >= capacity) {
 				capacity += 32 + len;
-				ptr = (char*)std::realloc(ptr, capacity);
+				char* old = ptr;
+				ptr = (char*)std::calloc(capacity+1, 1);
+				std::memcpy(ptr, old, size);
+				std::free(old);
 			}
 		}
 
@@ -320,6 +346,14 @@ namespace HS
 			capacity(size + 32)
 		{
 			// std::memcpy(ptr, _ptr, size * sizeof(wchar_t));
+		}
+
+		WString& operator=(const WString& right)
+		{
+			CapacityCheck(right.size);
+			std::wmemcpy(ptr, right.ptr, right.size);
+			size = right.size;
+			return *this;
 		}
 
 		bool operator == (WString b) { return Compare(*this, b); }
@@ -523,6 +557,10 @@ namespace HS
 			std::wmemcpy(buffer, ptr, buffLen );
 			return WString(buffer);
 		}
+		
+		friend std::ostream& operator<<(std::ostream& cout, const WString& wstr)  {
+			return cout << wstr.c_str();
+		}
 
 	private:
 		void CapacityCheck(int len)
@@ -548,7 +586,7 @@ namespace HS
 		return WString(buffer);
 	}
 
-	static inline wchar_t* ToWChar(const char* string)
+	static inline wchar_t* ToWCharArray(const char* string)
 	{
 		const int len = std::strlen(string);
 		wchar_t* buffer = (wchar_t*)std::malloc(len + 1 * sizeof(wchar_t));
@@ -557,7 +595,7 @@ namespace HS
 		return buffer;
 	}
 
-	static inline char* ToChar(const wchar_t* string)
+	static inline char* ToCharArray(const wchar_t* string)
 	{
 		const int len = std::wcslen(string);
 		char* buffer = (char*)std::malloc(len + 1);
@@ -566,20 +604,4 @@ namespace HS
 		return buffer;
 	}
 }
-
-namespace std
-{
-	ostream& operator<<(ostream& cout, const HS::String& obj)
-	{
-		std::cout << obj.c_str() << std::endl;
-		return cout;
-	}
-
-	ostream& operator<<(ostream& cout, const HS::WString& obj)
-	{
-		std::cout << obj.ToString() << std::endl;
-		return cout;
-	}
-}
-
 
