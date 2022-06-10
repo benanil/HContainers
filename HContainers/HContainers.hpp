@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdlib>
 #include <iostream>
+#include <functional>
 
 #define HS_ARRAY_IMPL() T& operator[](int index) { return ptr[index]; }                        \
                         const T& operator[](int index) const { return ptr[index]; }            \
@@ -308,6 +309,24 @@ namespace HS
 		}
 		Array() : size(0), capacity(32) { ptr = (T*)std::calloc(capacity, sizeof(T)); }
 		Array(int _size) : size(0), capacity(_size) { ptr = (T*)std::calloc(capacity, sizeof(T)); }
+		
+		Array(int _size, T value) : size(0), capacity(_size) 
+		{ 
+			ptr = (T*)std::malloc(capacity * sizeof(T));
+			for (int i = 0; i < _size; i++) ptr[i] = value;
+		}
+
+		// copy constructor
+		Array(const Array& other) : size(other.size), capacity(other.capacity), ptr((char*)std::calloc(capacity, sizeof(T)))
+		{
+			std::memcpy(ptr, other.ptr, size);
+		}
+
+		// move constructor 
+		Array(Array&& other) : size(other.size), capacity(other.capacity), ptr(other.ptr)
+		{
+			other.ptr = nullptr;
+		}
 
 		// initialize operator[] begin(), end(), GetFirst(), GetLast(), Clear()
 		HS_ARRAY_IMPL()
@@ -354,10 +373,77 @@ namespace HS
 		HArrayResult Remove(T value)
 		{
 			for (int i = 0; i < size; ++i)
+			{
 				if (value == ptr[i]) {
-					RemoveAtIndex(i); return HArrayResult::Success;
+					RemoveAtIndex(i); 
+					return HArrayResult::Success;
 				}
-				return HArrayResult::NotFinded;
+			}
+			return HArrayResult::NotFinded;
+		}
+
+		HArrayResult Remove(bool(*match)(const T&))
+		{
+			for (int i = 0; i < size; ++i)
+			{
+				if (match(ptr[i])) {
+					RemoveAtIndex(i);
+					return HArrayResult::Success;
+				}
+			}
+			return HArrayResult::NotFinded;
+		}
+
+		int RemoveAll(const T& value)
+		{
+			int freeIndex = 0;   // the first free slot in items array
+
+			// Find the first item which needs to be removed.
+			while (freeIndex < size && ptr[freeIndex] != value) freeIndex++;
+			if (freeIndex >= size) return 0;
+
+			int current = freeIndex + 1;
+			while (current < size) {
+				// Find the first item which needs to be kept.
+				while (current < size && ptr[current] == value) current++;
+
+				if (current < size) {
+					// copy item to the free slot.
+					ptr[freeIndex++] = ptr[current++];
+				}
+			}
+
+			memset(ptr + freeIndex, 0, size - freeIndex);
+			int result = size - freeIndex;
+			size = freeIndex;
+
+			return result; // removed item count
+		}
+
+		int RemoveAll(bool(*match)(const T&))
+		{
+			int freeIndex = 0;   // the first free slot in items array
+
+			// Find the first item which needs to be removed.
+			while (freeIndex < size && !match(ptr[freeIndex]) ) freeIndex++;
+			if (freeIndex >= size) return 0;
+
+			int current = freeIndex + 1;
+			while (current < size) {
+				// Find the first item which needs to be kept.
+				while (current < size && match(ptr[current]) ) current++;
+
+				if (current < size) {
+					// copy item to the free slot.
+					ptr[freeIndex++] = ptr[current++];
+				}
+			}
+
+			memset(ptr + freeIndex, 0, size - freeIndex);
+			int result = size - freeIndex;
+			size = freeIndex;
+
+			return result; // removed item count
 		}
 
 		void AddFront(T value) {
@@ -373,9 +459,10 @@ namespace HS
 		void RemoveBack() { std::memset(&ptr[--size], 0, sizeof(T)); }
 		void RemoveFront() { std::memmove(ptr, ptr + 1, size * sizeof(T)); std::memset(&ptr[--size], 0, sizeof(T)); }
 
-		void RemoveAtIndex(int index) {
-			std::memset(&ptr[index], 0, sizeof(T));
-			std::memmove(ptr + index, ptr + index + 1, size - index * sizeof(T));
+		void RemoveAtIndex(int index) 
+		{
+			if (size == 0) return;
+			std::memmove(ptr + index, ptr + index + 1, size - index+1 * sizeof(T));
 			--size;
 		}
 
@@ -641,6 +728,17 @@ namespace HS
 		// send sorted array
 		PriarotyQueue(T* begin, int _size) : ptr(begin), size(_size), capacity(32) { }
 
+		// copy constructor
+		PriarotyQueue(const PriarotyQueue& other) : size(other.size), capacity(other.capacity), ptr((char*)std::calloc(capacity, sizeof(T)))
+		{
+			std::memcpy(ptr, other.ptr, size);
+		}
+		// move constructor 
+		PriarotyQueue(PriarotyQueue&& other) : size(other.size), capacity(other.capacity), ptr(other.ptr)
+		{
+			other.ptr = nullptr;
+		}
+
 		// initialize operator[] begin(), end(), GetFirst(), GetLast(), Clear()
 		HS_ARRAY_IMPL()
 
@@ -709,6 +807,16 @@ namespace HS
 		Stack(int _size)
 		: size(0), capacity(_size) { ptr = (T*)std::calloc(capacity, sizeof(T));  }
 
+		// copy constructor
+		Stack(const Stack& other) : size(other.size), capacity(other.capacity), ptr((char*)std::calloc(capacity, sizeof(T)))
+		{
+			std::memcpy(ptr, other.ptr, size);
+		}
+		// move constructor 
+		Stack(Stack&& other) : size(other.size), capacity(other.capacity), ptr(other.ptr)
+		{
+			other.ptr = nullptr;
+		}
 		// initialize operator[] begin(), end(), GetFirst(), GetLast(), Clear()
 		HS_ARRAY_IMPL()
 
@@ -736,10 +844,22 @@ namespace HS
 	class Queue
 	{
 	public:
-		~Queue() { Clear(); std::free(ptr); ptr = nullptr; }
+		~Queue() { if (ptr) { Clear(); std::free(ptr); ptr = nullptr; }}
 
 		Queue() : front(0), rear(0), capacity(32) { ptr = (T*)std::calloc(capacity, sizeof(T));  }
 		Queue(int _size) : front(0), rear(0), capacity(_size) { ptr = (T*)std::calloc(capacity, sizeof(T));  }
+
+		// copy constructor
+		Queue(const Queue& other)
+			:  capacity(other.capacity), ptr((char*)std::calloc(capacity, sizeof(T))), front(other.front), rear(other.rear)
+		{
+			std::memcpy(ptr, other.ptr, capacity);
+		}
+		// move constructor 
+		Queue(Queue&& other) :  capacity(other.capacity), ptr(other.ptr), front(other.front), rear(other.rear)
+		{
+			other.ptr = nullptr;
+		}
 
 		void Clear() {
 			std::memset(ptr, 0, sizeof(T) * capacity);
