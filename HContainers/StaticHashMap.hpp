@@ -28,7 +28,7 @@ namespace HS
 
 		inline StaticHashMap()  { }
 		
-		~StaticHashMap()  { Clear(); }
+		~StaticHashMap()  { }
 
 		HSCONSTEXPR StaticHashMap(const StaticHashMap& other) // copy constructor
 		{
@@ -121,6 +121,18 @@ namespace HS
 			return numElements[Hasher::Hash(key) % Size];
 		}
 
+		HSCONSTEXPR void Iterate(void(*Func)(float&))
+		{
+			int currentBucket = Size;
+			while (currentBucket--)
+			{
+				for (int i = 0; i < numElements[currentBucket]; ++i)
+				{
+					Func(arr[currentBucket * BucketSize + i].value);
+				}
+			}
+		}
+
 		HSCONSTEXPR void Clear() 
 		{
 			int currentBucket = Size;
@@ -148,7 +160,7 @@ namespace HS
 			HSCONSTEXPR Iterator(const StaticHashMap* map, int cBucketIndex, int cIndex)
 			: hashMap(map), currBucketIndex(cBucketIndex), currIndex(cIndex) { }
 
-			HSCONSTEXPR Value& operator*() const
+			HSCONSTEXPR Value operator*() const
 			{
 				return hashMap->arr[currBucketIndex * BucketSize + currIndex].value;
 			}
@@ -156,7 +168,8 @@ namespace HS
 			// prefix increment
 			HSCONSTEXPR Iterator& operator++()
 			{
-				currBucketIndex += currIndex++ >= hashMap->numElements[currBucketIndex];
+				currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
+				currIndex *= currIndex < hashMap->numElements[currBucketIndex];
 				return *this;
 			}
 
@@ -164,7 +177,8 @@ namespace HS
 			HSCONSTEXPR Iterator operator++(int amount)
 			{
 				currBucketIndex += currIndex++ >= hashMap->numElements[currBucketIndex];
-				return this;
+				currIndex *= currIndex < hashMap->numElements[currBucketIndex];
+				return *this;
 			}
 
 			HSCONSTEXPR Value* operator->() 
@@ -194,10 +208,10 @@ namespace HS
 		};
 
 		HSCONSTEXPR Iterator begin() const { return Iterator(this, 0, 0); }
-		HSCONSTEXPR Iterator end()   const { return Iterator(this, Size, BucketSize); }
+		HSCONSTEXPR Iterator end()   const { return Iterator(this, Size-1, BucketSize); }
 		
 		HSCONSTEXPR Iterator cbegin() const { return Iterator(this, 0, 0); }
-		HSCONSTEXPR Iterator cend()   const { return Iterator(this, Size, BucketSize); }
+		HSCONSTEXPR Iterator cend()   const { return Iterator(this, Size-1, BucketSize); }
 
 	};	
 
