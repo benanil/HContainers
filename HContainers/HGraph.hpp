@@ -128,18 +128,18 @@ namespace HS
 		template<class UserClass>
 		void IterateClass(VertexIndex startIndex, ClassIterator<UserClass> iterator)
 		{
-			bool* visited = (bool*)_malloca(graph->nVertices);
+			bool* visited = (bool*)malloc(graph->nVertices);
 			std::memset(visited, 0, graph->nVertices);
 			DFSRec(startIndex, visited, iterator);
-			_freea(visited);
+			free(visited);
 		}
 
 		void Iterate(VertexIndex startIndex, IterateFunc func)
 		{
-			bool* visited = (bool*)_malloca(graph->nVertices);
+			bool* visited = (bool*)malloc(graph->nVertices);
 			std::memset(visited, 0, graph->nVertices);
 			DFSRec(startIndex, visited, func);
-			_freea(visited);
+			free(visited);
 		}
 	private:
 
@@ -199,7 +199,7 @@ namespace HS
 
 		void Iterate(VertexIndex s, IterateFunc func)
 		{
-			bool* visited = (bool*)_malloca(graph->nVertices);
+			bool* visited = (bool*)malloc(graph->nVertices);
 			std::memset(visited, 0, graph->nVertices);
 
 			Queue<VertexIndex> queue;
@@ -222,7 +222,7 @@ namespace HS
 					currEdge = currEdge->next;
 				}
 			}
-			_freea(visited);
+			free(visited);
 		}
 	private:
 		GraphT* graph;
@@ -243,9 +243,9 @@ namespace HS
 			Vertex** result = (Vertex**)std::malloc(100 * sizeof(Vertex*));
 			std::memset(result, 0, 100 * sizeof(Vertex*));
 			Edge* edge;
-			bool* inTree = (bool*)_malloca(graph.nVertices);
+			bool* inTree = (bool*)malloc(graph.nVertices);
 			std::memset(inTree, 0, graph.nVertices);
-			float* distances = (float*)_malloca(graph.nVertices * sizeof(float));
+			float* distances = (float*)malloc(graph.nVertices * sizeof(float));
 			std::fill(distances, distances + graph.nVertices, FLT_MAX);
 
 			distances[v] = 0;
@@ -279,8 +279,8 @@ namespace HS
 					}
 				}
 			}
-			_freea(distances);
-			_freea(inTree);
+			free(distances);
+			free(inTree);
 			return result;
 		}
 	private:

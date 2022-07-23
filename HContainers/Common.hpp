@@ -13,6 +13,37 @@
 						void Clear()  { std::memset(ptr, 0, capacity * sizeof(T)); size = 0; }
 
 
+#ifndef FINLINE
+#	ifndef _MSC_VER 
+#		define FINLINE inline
+#	else
+#		define FINLINE __forceinline
+#	endif
+#endif 
+
+// coppied from here: winnt.h line 2481  DEFINE_ENUM_FLAG_OPERATORS we are not using this because we don't want to include winnt.h
+// Define operator overloads to enable bit operations on enum values that are
+// used to define flags. Use HS_CREATE_ENUM_OPERATORS(YOUR_TYPE) to enable these
+// Templates are defined here in order to avoid a dependency on C++ <type_traits> header file,
+template <size_t S> struct _ENUM_TO_INT;
+template <> struct _ENUM_TO_INT<1> { typedef char  type; };
+template <> struct _ENUM_TO_INT<2> { typedef short type; };
+template <> struct _ENUM_TO_INT<4> { typedef int  type; };
+template <> struct _ENUM_TO_INT<8> { typedef long type; };
+// used as an approximation of std::underlying_type<T>
+template <class T> struct UnderlyingType {
+	typedef typename _ENUM_TO_INT<sizeof(T)>::type type;
+};
+
+#define HS_CREATE_ENUM_OPERATORS(ENUMTYPE) \
+inline constexpr ENUMTYPE operator | (ENUMTYPE a, ENUMTYPE b) noexcept { return ENUMTYPE(((UnderlyingType<ENUMTYPE>::type)a) | ((UnderlyingType<ENUMTYPE>::type)b)); } \
+inline ENUMTYPE &operator |= (ENUMTYPE &a, ENUMTYPE b) noexcept { return (ENUMTYPE&)(((UnderlyingType<ENUMTYPE>::type&)a) |= ((UnderlyingType<ENUMTYPE>::type)b)); } \
+inline constexpr ENUMTYPE operator & (ENUMTYPE a, ENUMTYPE b) noexcept { return ENUMTYPE(((UnderlyingType<ENUMTYPE>::type)a) & ((UnderlyingType<ENUMTYPE>::type)b)); } \
+inline ENUMTYPE &operator &= (ENUMTYPE &a, ENUMTYPE b) noexcept { return (ENUMTYPE&)(((UnderlyingType<ENUMTYPE>::type&)a) &= ((UnderlyingType<ENUMTYPE>::type)b)); } \
+inline constexpr ENUMTYPE operator ~ (ENUMTYPE a) noexcept { return ENUMTYPE(~((UnderlyingType<ENUMTYPE>::type)a)); } \
+inline constexpr ENUMTYPE operator ^ (ENUMTYPE a, ENUMTYPE b) noexcept { return ENUMTYPE(((UnderlyingType<ENUMTYPE>::type)a) ^ ((UnderlyingType<ENUMTYPE>::type)b)); } \
+inline ENUMTYPE &operator ^= (ENUMTYPE &a, ENUMTYPE b) noexcept { return (ENUMTYPE&)(((UnderlyingType<ENUMTYPE>::type&)a) ^= ((UnderlyingType<ENUMTYPE>::type)b)); } 
+
 using uint8  = unsigned char;
 using uint16 = unsigned short;
 using uint   = unsigned int;
@@ -42,37 +73,61 @@ namespace HS
 	{
 		template <typename T> unsigned int Hash(const T& val)
 		{
-			return val.Hash();
+			return 0;
 		}
 
-		template <> unsigned int Hash(float f)
+		template <typename float> unsigned int Hash(float f)
 		{
 			union Converter { float fVal; uint uval; } converter;
 			return converter.uval;
 		}
 
-		template <> unsigned int Hash(int in)
+		template <typename int> unsigned int Hash(int in)
 		{
 			return (unsigned int)in;
 		}
 	}
 
-	template<typename = T>
+	// very fast hash function + compile time
+	static inline constexpr uint KnuthHash(uint a, uint shift)
+	{
+		const uint knuth_hash = 2654435769u;
+		return ((a * knuth_hash) >> shift);
+	}
+
+	static inline constexpr void hash_combine(uint& s, const uint v, uint shift)
+	{
+		s ^= KnuthHash(v, shift) + 0x9e3779b9 + (s << 6) + (s >> 2);
+	}
+
+	// very fast hash function + compile time
+	static inline constexpr uint StringToHash(const char* string)
+	{
+		uint hash = KnuthHash(string[0], 0);
+
+		for (uint i = 1; i < __builtin_strlen(string); ++i) {
+			hash_combine(hash, uint(string[i]), i);
+		}
+
+		return hash;
+	}
+
+	template<typename T>
 	constexpr void MemCpy(T* a, const T* b, int count)
 	{
 		while (count--) a[count] = b[count];
 	}
 	
-	template<typename = T>
+	template<typename T>
 	constexpr void MemSet(T* a, T value, int count)
 	{
-		while (count--) a[count] = b[count];
+		while (count--) a[count] = value;
 	}
 	
-	template<typename = T>
+	template<typename T>
 	constexpr void MemSetRef(T* a, T value, int count)
 	{
-		while (count--) a[count] = b[count];
+		while (count--) a[count] = value;
 	}
 
 	template<typename T>

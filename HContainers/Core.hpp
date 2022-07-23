@@ -3,9 +3,6 @@
 #ifndef HUSTLE_CORE
 #define HUSTLE_CORE
 
-#include <iostream>
-#include <type_traits>
-
 #ifndef HS_FORCE_INLINE 
 #	ifndef _MSC_VER 
 #		define HS_FORCE_INLINE inline

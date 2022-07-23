@@ -1,13 +1,15 @@
 ﻿#include <iostream>
+#include <chrono>
+#include <iostream>
 #include "HContainers.hpp"
 #include "HString.hpp"
 #include "HGraph.hpp"
 #include "StaticHashMap.hpp"
+#include "BinaryTree.hpp"
+#include "Pair.hpp"
 
 using namespace HS;
 
-#include <chrono>
-#include <iostream>
 
 #ifndef NDEBUG
 #	define CSTIMER(message) Timer timer = Timer(message);
@@ -113,9 +115,21 @@ int main()
 			hashMap.Insert(i, (float)i * 0.5f);
 		
 		bool contains = hashMap.Contains(5);
-		float& find = hashMap.Find(40);
+		float* find = hashMap.Find(40);
 		hashMap[5] += 55.0f;
+		
+		int len = 0;
+		for (auto& it : hashMap)
+		{
+			std::cout << it << std::endl;
+			if (len++ > 10) break;
+		}
+
+		std::cout << hashMap[40] << std::endl;
+		std::cout << hashMap[5] << std::endl;
 	}
+	
+	return 0;
 
 	{
 		Array<int> removeTest = Array<int>(10);

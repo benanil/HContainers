@@ -1,551 +1,750 @@
 #pragma once
-#include "Core.hpp"
+#include "Common.hpp"
 #include <iosfwd> // for overriding << operator for std::cout
+#include <sstream>
+#include <stdlib.h>
 
 namespace HS
 {
-	enum class StrResult
+
+	inline wchar_t* ToWCharArray(const char* string)
 	{
-		None, NotFinded = 0, IndexOutOfArray, Success
+		const size_t len = strlen(string);
+		wchar_t* buffer = (wchar_t*)malloc(len + 1ull * sizeof(wchar_t));
+#pragma warning(suppress : 4996)
+		mbstowcs(buffer, string, len + 1ull);
+		return buffer;
+	}
+
+	inline char* ToCharArray(const wchar_t* string)
+	{
+		const size_t len = wcslen(string);
+		char* buffer = (char*)malloc(len + 1ull);
+#pragma warning(suppress : 4996)
+		wcstombs(buffer, string, len + 1ull);
+		return buffer;
+	}
+
+	enum class StrResult : int
+	{
+		None = 0, NotFinded = 0, False = 0, // negatives
+		Finded = 1, Success = 1, True = 1, // positives
+		IndexOutOfArray = 2                   // errors
 	};
+
+	HS_CREATE_ENUM_OPERATORS(StrResult, int);
 
 	class String
 	{
 	public:
 		~String() {
-			if (ptr) { std::free(ptr); ptr = nullptr;  size = 0; capacity = 0; }
+			if (ptr) { free(ptr); ptr = nullptr;  size = 0; capacity = 0; }
+		}
+		String(int _size) : size(0), capacity(_size + 1)
+		{
+			ptr = (char*)calloc(capacity, sizeof(char));
 		}
 		// copy constructor
-		String(const String& other)
-			: size(other.size),
-			capacity(other.capacity),
-			ptr((char*)std::calloc(capacity, sizeof(char)))
+		String(const String& other) : size(other.size), capacity(other.capacity)
 		{
-			std::memcpy(ptr, other.ptr, size);
+			ptr = (char*)calloc(capacity, sizeof(char));
+			memcpy(ptr, other.ptr, size);
 		}
 		// move constructor 
-		String(const String&& other) noexcept
-			: size(other.size),
-			capacity(other.capacity),
-			ptr(other.ptr)
+		String(String&& other) noexcept : size(other.size), capacity(other.capacity), ptr(other.ptr)
 		{
+			other.ptr = nullptr;
 		}
 
-		String(int _size)
-			: size(0), capacity(_size + 1),
-			ptr((char*)std::calloc(capacity, sizeof(char)))
+		String() : size(0), capacity(32)
 		{
+			ptr = (char*)calloc(capacity, 1);
 		}
 
-		String()
-			: size(0), capacity(32),
-			ptr((char*)std::calloc(capacity, sizeof(char)))
+		String(const char* _ptr) : size(strlen(_ptr))
 		{
+			capacity = size + 32;
+			ptr = (char*)calloc(capacity, 1);
+			memcpy(ptr, _ptr, size);
 		}
 
-		String(const char* _ptr)
-			: size(std::strlen(_ptr)),
-			ptr((char*)std::calloc(capacity, sizeof(char))),
-			capacity(size + 32)
+		String(char* _ptr) : size(strlen(_ptr))
 		{
-			std::memcpy(ptr, _ptr, size);
-		}
-
-		String(char* _ptr)
-			: size(std::strlen(_ptr)),
-			ptr(_ptr),//ptr((char*)std::calloc(capacity, sizeof(char))),
-			capacity(size + 32)
-		{
-			// std::memcpy(ptr, _ptr, size);
+			capacity = size + 32;
+			ptr = (char*)calloc(capacity, 1);
+			memcpy(ptr, _ptr, size);
 		}
 		// asign operator
-		String& operator=(const String& right)
+		String& operator = (const String& right)
 		{
 			CapacityCheck(right.size);
-			std::memcpy(ptr, right.ptr, right.size);
+			memcpy(ptr, right.ptr, right.size);
 			size = right.size;
 			return *this;
 		}
-		bool operator == (String b) { return Compare(*this, b); }
-		bool operator != (String b) { return !Compare(*this, b); }
-		char operator[](int index) const { return ptr[index]; }
+
+		bool operator == (const String& b) const { return  Compare(*this, b); }
+		bool operator != (const String& b) const { return !Compare(*this, b); }
+		char operator[](int index)         const { return ptr[index]; }
 
 		char* begin() { return ptr; }
 		char* end() { return ptr + size; }
 		const char* cbegin() const { return ptr; }
 		const char* cend()   const { return ptr + size; }
 
-		const char* c_str() const { return ptr; };
+		const char* CStr() const { return ptr; };
 
-		static HS_FORCE_INLINE bool Compare(String a, String b)
+		static FINLINE bool Compare(const String& a, const String& b)
 		{
 			return a.size == b.size && !strcmp(a.ptr, b.ptr);
 		}
 
-		void Set(const char* str)
+		inline void Reset()
+		{
+			memset(ptr, 0, size);
+			size = 0;
+		}
+
+		inline void Set(const char* str)
 		{
 			Clear();
 			CapacityCheck(strlen(str));
-			std::memcpy(ptr, str, strlen(str));
+			memcpy(ptr, str, strlen(str));
 		}
 
-		void Set(const String& str)
+		inline void Set(const String& str)
 		{
 			Clear();
 			CapacityCheck(str.size);
-			std::memcpy(ptr, str.c_str(), str.size);
+			size = str.Length();
+			memcpy(ptr, str.CStr(), str.size);
 		}
 
-		void Reserve(int size)
+		inline void Reserve(int size)
 		{
 			if (size > capacity) {
 				capacity = size;
-				ptr = (char*)std::realloc(ptr, capacity);
+				ptr = (char*)realloc(ptr, capacity);
 			}
 		}
 
-		void Clear() { std::memset(ptr, 0, capacity); size = 0; }
+		inline void Clear() { memset(ptr, 0, capacity); size = 0; }
 
 		// Append
 		StrResult Insert(int index, char value)
 		{
-			const int findIndex = FindIndex(value);
-			if (findIndex == -1) return StrResult::NotFinded;
-			CapacityCheck(1);
-			std::memmove(ptr + findIndex + 1, ptr + findIndex, size - findIndex);
-			ptr[findIndex] = value;
+			if (index > size || index < 0) return StrResult::IndexOutOfArray;
+			const int oldLen = Length();
+			Reserve(oldLen + 2);
+			char* slow = ptr + oldLen;
+			char* fast = slow - 1;
+			// shift all right characters to 1 char right
+			while (fast >= ptr + index)
+			{
+				*slow-- = *fast--;
+			}
+			ptr[index] = value;
+			ptr[++size] = '\0';
 			return StrResult::Success;
 		}
-		
-		StrResult Insert(int index, const char* value)
+
+		StrResult Insert(int index, const char* other)
 		{
-			// https://stackoverflow.com/questions/779875/what-function-is-to-replace-a-substring-from-a-string-in-c
-			const int len = std::strlen(value);
-			if (index > size) index = size;
-			CapacityCheck(len);
-			char* p = ptr + index;
-			std::memmove(p + len, p, size - index);
-			std::memcpy(p, value, len);
+			if (index > size || index < 0) return StrResult::IndexOutOfArray;
+			const int otherLen = (int)strlen(other);
+			const int oldLen = Length();
+			Reserve(oldLen + otherLen + 2);
+			char* curr = ptr + oldLen - 1;
+			while (curr >= ptr + index)
+			{
+				curr[otherLen + 1] = *curr--;
+			}
+			memcpy(ptr + index, other, otherLen);
+			size += otherLen;
+			ptr[++size] = '\0';
 			return StrResult::Success;
 		}
 
 		StrResult Insert(int index, const String& value)
 		{
-			return Insert(index, value.c_str());
+			return Insert(index, value.CStr());
 		}
 
-		String& operator+= (char _char)			  { Append(_char);  return *this; }
-		String& operator+= (const char* _char)	  { Append(_char);  return *this; }
-		String& operator+= (const String& string) { Append(string); return *this; }
+		void Append(long value) { char buff[16]; sprintf(buff, "%lld", value); Append(buff); }
+		void Append(int value) { char buff[16]; sprintf(buff, "%d", value);   Append(buff); }
+		void Append(float value) { char buff[16]; sprintf(buff, "%f", value);   Append(buff); }
 
-		void Append(char _char)
+		static String From(long value) { char buff[16]; sprintf(buff, "%lld", value); return buff; }
+		static String From(int value) { char buff[16]; sprintf(buff, "%d", value); return buff; }
+		static String From(float value) { char buff[16]; sprintf(buff, "%f", value); return buff; }
+
+		void operator += (char _char) { AppendChar(_char); }
+		void operator += (const String& string) { Append(string); }
+
+		void operator += (long value) { Append(value); }
+		void operator += (int  value) { Append(value); }
+		void operator += (float value) { Append(value); }
+
+		String operator + (char _char)           const { String res(*this); res.AppendChar(_char);  return res; }
+		String operator + (const char* string)   const { String res(*this); res.Append(string); return res; }
+		String operator + (const String& string) const { String res(*this); res.Append(string); return res; }
+
+		String operator + (long value) const { String res(*this); res.Append(value); return *this; }
+		String operator + (int value) const { String res(*this); res.Append(value); return *this; }
+		String operator + (float value) const { String res(*this); res.Append(value); return *this; }
+
+		void AppendChar(char _char)
 		{
 			CapacityCheck(1);
 			ptr[size++] = _char;
+			ptr[size] = '\0';
 		}
 
-		void Append(const char* _char)
+		inline void Append(const char* _char)
 		{
-			const int len = strlen(_char);
-			CapacityCheck(len);
-			#pragma warning(suppress : 4996)
-			std::strncat(ptr + size, _char, len + 1);
+			const size_t len = strlen(_char);
+			CapacityCheck((int)len);
+#pragma warning(suppress : 4996)
+			strncat(ptr + size, _char, len + 1ull);
 			size += len;
+			ptr[size] = '\0';
 		}
 
-		String AppendCopy(const char* _char)
+		inline void Append(const char* _char, const size_t len)
 		{
-			const int len = strlen(_char);
-			char* buffer = (char*)std::calloc(len + size, sizeof(char));
-			std::memcpy(buffer, ptr, size);
-		#pragma warning(suppress : 4996)
-			std::strncat(buffer + size, _char, len + 1);
+			CapacityCheck((int)len);
+#pragma warning(suppress : 4996)
+			strncat(ptr + size, _char, len + 1ull);
+			size += len;
+			ptr[size] = '\0'; // for safety
+		}
+
+		inline String AppendCopy(const char* _char)
+		{
+			const size_t len = strlen(_char);
+			char* buffer = (char*)calloc(len + size, sizeof(char));
+			memcpy(buffer, ptr, size);
+#pragma warning(suppress : 4996)
+			strncat(buffer + size, _char, len + 1ull);
 			return String(buffer);
 		}
 
-		void Append(const String& string) { Append(string.c_str()); }
+		inline void Append(const String& string) { Append(string.CStr()); }
 
 		// Find
 		int FindIndex(char _char) const
 		{
 			for (int i = 0; i < size; ++i)
 				if (ptr[i] == _char) return i;
-			return false;
+			return -1;
 		}
 
-		static inline bool StrnCmp(const char* a, const char* b, int size)
+		inline int FindIndex(const char* str, const int len) const
 		{
-			return !std::strncmp(a, b, size);
+			for (int i = 0; i < size - (len - 1); ++i)
+				if (!strncmp(str, ptr + i, len)) return i;
+			return -1;
 		}
 
-		int FindIndex(const char* str) const
+		inline int FindIndex(const char* str) const
 		{
-			const int len = strlen(str);
-			for (int i = 0; i < size - (len-1); ++i)
-				if (std::strncmp(str, ptr + i, len)) return i;
+			const int len = (int)strlen(str);
+			for (int i = 0; i < size - (len - 1); ++i)
+				if (!strncmp(str, ptr + i, len)) return i;
 			return -1;
 		}
 
 		// Remove
-		StrResult Remove(char _char)
+		inline StrResult Remove(char _char)
 		{
 			const int index = FindIndex(_char);
 			if (index == -1) return StrResult::NotFinded;
-			std::memmove(ptr + index, ptr + index + 1, 1);
-			--size;
+			memmove(ptr + index, ptr + index + 1ull, 1ull);
+			ptr[--size] = '\0';
 			return StrResult::Success;
 		}
 
-		StrResult Remove(const char* _char)
+		inline StrResult Remove(const char* _char)
 		{
-			const int len = strlen(_char);
-			char* start = std::strstr(ptr, _char);
-			if (start == nullptr) return StrResult::NotFinded;
-			std::memset(start, 0, len);
-			std::memmove(start, start + len, len);
-			size -= len;
-			return StrResult::Success;
+			const int otherLen = strlen(_char);
+			const int findIndex = FindIndex(_char, otherLen);
+
+			if (findIndex != -1)
+			{
+				char* findPos = ptr + findIndex;
+				char* otherEnd = findPos + otherLen;
+				// shift all right characters to the find pos
+				while (*otherEnd) {
+					*findPos++ = *otherEnd++;
+				}
+				// set all removed characters to null terminator
+				while (*findPos) {
+					*findPos++ = '\0';
+				}
+
+				return StrResult::Success;
+			}
+			return StrResult::NotFinded;
+		}
+
+		inline StrResult StartsWith(const char* other, int len) const
+		{
+			if (size < len) StrResult::IndexOutOfArray;
+
+			while (len--)
+			{
+				if (other[len] != ptr[len]) return StrResult::False;
+			}
+			return StrResult::True;
+		}
+
+		StrResult StartsWith(const String& other) const
+		{
+			int len = other.Length();
+			if (size < len) StrResult::IndexOutOfArray;
+			while (len--)
+			{
+				if (other[len] != ptr[len]) return StrResult::False;
+			}
+			return StrResult::True;
 		}
 
 		StrResult Remove(const String& str)
 		{
-			return Remove(str.c_str());
+			return Remove(str.CStr());
 		}
 
 		StrResult Find(char _char) const { return FindIndex(_char) ? StrResult::Success : StrResult::NotFinded; }
 
 		StrResult Find(const char* _char) const { return FindIndex(_char) ? StrResult::Success : StrResult::NotFinded; }
 
-		StrResult Find(const String& str) const { return FindIndex(str.c_str()) ? StrResult::Success : StrResult::NotFinded; }
+		StrResult Find(const String& str) const { return FindIndex(str.CStr()) ? StrResult::Success : StrResult::NotFinded; }
 
 		StrResult Replace(int start, int end, const char* cstr)
 		{
 			if (end > capacity) return StrResult::IndexOutOfArray;
 			const int len = end - start;
-			std::memcpy(ptr + start, cstr, len);
+			memcpy(ptr + start, cstr, len);
 			return StrResult::Success;
 		}
-		
-		/// <summary> not suitable for big strings (1k-2k char) you can generate your own algorithm for that </summary>
-		StrResult Replace(const char* old, const char* _new, int searchStartIndex = 0)
-		{
-			const int len = strlen(_new);
-			const int oldLen = strlen(old);
-			char* sp;
 
-			if ((sp = std::strstr(ptr + searchStartIndex, old)) == nullptr) {
-				return StrResult::NotFinded;
+		/// <summary> not suitable for big strings (1k-2k char) you can generate your own algorithm for that </summary>
+		StrResult Replace(const char* from, const char* _new)
+		{
+			const int fromLen = (int)strlen(from);
+			const int toLen = (int)strlen(_new);
+
+			int fromIndex = FindIndex(from, fromLen);
+
+			if (fromIndex != -1) // this means finded
+			{
+				const int newLen = Length() + (fromLen - toLen);
+
+				Reserve(newLen);
+				size = newLen;
+				const int tailLen = strlen(ptr + fromIndex + fromLen);
+				memmove(ptr + fromIndex + toLen, ptr + fromIndex + fromLen, tailLen + 1 * sizeof(char));
+				memcpy(ptr + fromIndex, _new, toLen * sizeof(char));
+				return StrResult::Success;
 			}
-
-			const int diff = std::abs(len - oldLen);
-			const int tailLen = strlen(sp + oldLen);
-
-			std::memmove(sp + len, sp + oldLen, tailLen + 1);
-			std::memcpy(sp, _new, len);
-			size += len - oldLen;
-
-			return StrResult::Success;
+			return StrResult::NotFinded;
 		}
 
 		/// <summary> not suitable for big strings (1k-2k char) you can generate your own algorithm for that </summary>
-		StrResult ReplaceAll(const char* old, const char* _new)
+		/// <returns> number of instance removed </returns>
+		int ReplaceAll(const char* old, const char* _new)
 		{
-			bool finded = false;
 			StrResult strResult = StrResult::Success;
-			const int _newLen = std::strlen(_new);
-			int currentIndex = 0;
+			const int _newLen = strlen(_new);
+			int removedCount = 0;
 			while (strResult == StrResult::Success) {
-				strResult = Replace(old, _new, currentIndex);
-				currentIndex += _newLen;
+				strResult = Replace(old, _new);
+				++removedCount;
 			}
-			return finded ? StrResult::Success : StrResult::NotFinded;
+			return removedCount;
 		}
 
 		StrResult Replace(const String& old, const String& _new)
 		{
-			return Replace(old.c_str(), _new.c_str());
+			return Replace(old.CStr(), _new.CStr());
 		}
 
 		String SubString(int begin, int end) const
 		{
 			if (begin > size) return String();
 			const int buffSize = end - begin;
-			char* buffer = (char*)std::calloc(buffSize + 1, 1);
-			std::memcpy(buffer, ptr, buffSize);
+			char* buffer = (char*)calloc(buffSize + 1ull, 1ull);
+			memcpy(buffer, ptr, buffSize);
 			return String(buffer);
 		}
 
 		friend std::ostream& operator<<(std::ostream& cout, String& wstr) {
-			return cout << wstr.c_str();
+			return cout << wstr.CStr();
 		}
 
+		int Capacity() const { return capacity; }
+		int Length()   const { return size; }
+
 	private:
-		void CapacityCheck(int len)
+		FINLINE void CapacityCheck(int len)
 		{
-			if (size + len + 1 >= capacity) {
-				capacity += 32 + len;
-				char* old = ptr;
-				ptr = (char*)std::calloc(capacity+1, 1);
-				std::memcpy(ptr, old, size);
-				std::free(old);
+			if (size + len + 1 >= capacity)
+			{
+				int newLen = size + len;
+				capacity = newLen + (newLen / 2);
+				ptr = (char*)realloc(ptr, capacity + 1);
 			}
 		}
-
 	private:
 		int capacity;
-	public:
 		int size;
-		char* ptr = nullptr;
+	public:
+		char* ptr;
 	};
 
 	class WString
 	{
 	public:
-		~WString() {
-			if (ptr) { std::free(ptr); ptr = nullptr;  size = 0; capacity = 0; }
+		~WString()
+		{
+			if (ptr) { free(ptr); ptr = nullptr;  size = 0; capacity = 0; }
 		}
 		// copy constructor
-		WString(const WString& other)
-			: size(other.size),
-			capacity(other.capacity),
-			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t)))
+		WString(const WString& other) : size(other.size), capacity(other.capacity)
 		{
-			std::wmemcpy(ptr, other.ptr, size);
+			ptr = (wchar_t*)calloc(capacity, sizeof(wchar_t));
+			wmemcpy(ptr, other.ptr, size);
 		}
 		// move constructor 
-		WString(const WString&& other) noexcept
-			: size(other.size),
-			capacity(other.capacity),
-			ptr(other.ptr)
+		WString(WString&& other) noexcept : size(other.size), capacity(other.capacity), ptr(other.ptr)
 		{
+			other.ptr = nullptr;
 		}
 
-		WString(int _size)
-			: size(0), capacity(_size),
-			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t)))
+		WString() : size(0), capacity(32)
 		{
+			ptr = (wchar_t*)calloc(capacity, sizeof(wchar_t));
 		}
 
-		WString()
-			: size(0), capacity(32),
-			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t)))
+		WString(int _size) : size(0), capacity(_size)
 		{
+			ptr = (wchar_t*)calloc(capacity, sizeof(wchar_t));
 		}
 
-		WString(const wchar_t* _ptr)
-			: size(std::wcslen(_ptr)),
-			ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t))),
-			capacity(size + 32)
+		WString(const wchar_t* _ptr) : size(wcslen(_ptr))
 		{
-			std::wmemcpy(ptr, _ptr, size);
+			capacity = size + 32;
+			ptr = (wchar_t*)calloc(capacity, sizeof(wchar_t));
+			wmemcpy(ptr, _ptr, size);
 		}
 
-		WString(wchar_t* _ptr)
-			: size(std::wcslen(_ptr)),
-			ptr(_ptr),//ptr((wchar_t*)std::calloc(capacity, sizeof(wchar_t))),
-			capacity(size + 32)
+		WString(wchar_t* _ptr) : size(wcslen(_ptr))
 		{
-			// std::memcpy(ptr, _ptr, size * sizeof(wchar_t));
+			capacity = size + 32;
+			ptr = (wchar_t*)calloc(capacity, sizeof(wchar_t));
+			memcpy(ptr, _ptr, size * sizeof(wchar_t));
 		}
 
-		WString& operator=(const WString& right)
+		WString& operator = (const WString& right)
 		{
 			CapacityCheck(right.size);
-			std::wmemcpy(ptr, right.ptr, right.size);
+			wmemcpy(ptr, right.ptr, right.size);
 			size = right.size;
 			return *this;
 		}
 
-		bool operator == (WString b) { return Compare(*this, b); }
-		bool operator != (WString b) { return !Compare(*this, b); }
+		bool operator == (const WString& b) { return  Compare(*this, b); }
+		bool operator != (const WString& b) { return !Compare(*this, b); }
 		wchar_t operator[](int index) const { return ptr[index]; }
 
 		wchar_t* begin() { return ptr; }
-		wchar_t* end()   { return ptr + size; }
+		wchar_t* end() { return ptr + size; }
 		const wchar_t* cbegin() const { return ptr; }
 		const wchar_t* cend()   const { return ptr + size; }
 
-		const wchar_t* c_str() const { return ptr; };
+		const wchar_t* CStr() const { return ptr; };
 
-		static HS_FORCE_INLINE bool Compare(WString a, WString b)
+		static FINLINE bool Compare(WString a, WString b)
 		{
-			return a.size == b.size && !std::wcscmp(a.ptr, b.ptr);
+			return a.size == b.size && !wcscmp(a.ptr, b.ptr);
 		}
 
-		void Reserve(int size)
+		inline void Reset()
+		{
+			memset(ptr, 0, size);
+			size = 0;
+		}
+
+		inline void Set(const wchar_t* str)
+		{
+			Clear();
+			CapacityCheck(wcslen(str));
+			memcpy(ptr, str, wcslen(str) * sizeof(wchar_t));
+		}
+
+		inline void Set(const WString& str)
+		{
+			Clear();
+			CapacityCheck(str.Length());
+			size = str.Length();
+			memcpy(ptr, str.CStr(), str.Length() * sizeof(wchar_t));
+		}
+
+		inline void Reserve(int size)
 		{
 			if (size > capacity) {
 				capacity = size;
-				ptr = (wchar_t*)std::realloc(ptr, capacity * sizeof(wchar_t));
+				ptr = (wchar_t*)realloc(ptr, capacity * sizeof(wchar_t));
 			}
 		}
 
-		void Clear() { std::memset(ptr, 0, size); size = 0; }
+		inline void Clear() { memset(ptr, 0, size * sizeof(wchar_t)); size = 0; }
 
 		// Append
-		StrResult Insert(int index, char value)
+		inline StrResult Insert(int index, wchar_t value)
 		{
-			const int findIndex = FindIndex(value);
-			if (findIndex == -1) return StrResult::NotFinded;
-			CapacityCheck(1);
-			std::wmemmove(ptr + findIndex + 1, ptr + findIndex, 1);
-			ptr[findIndex] = value;
+			if (index > size || index < 0) return StrResult::IndexOutOfArray;
+			const int oldLen = Length();
+			Reserve(oldLen + 2);
+			wchar_t* slow = ptr + oldLen;
+			wchar_t* fast = slow - 1;
+			// shift all right characters to 1 char right
+			while (fast >= ptr + index)
+			{
+				*slow-- = *fast--;
+			}
+			ptr[index] = value;
+			ptr[++size] = L'\0';
 			return StrResult::Success;
 		}
 
-		StrResult Insert(int index, const wchar_t* value)
+		inline StrResult Insert(int index, const wchar_t* other)
 		{
-			const int len = std::wcslen(value);
-			if (index > size) index = size;
-			CapacityCheck(len);
-			wchar_t* p = ptr + index;
-			std::wmemmove(p + len, p, size - index);
-			std::wmemcpy(p, value, len);
+			if (index > size || index < 0) return StrResult::IndexOutOfArray;
+			const int otherLen = (int)wcslen(other);
+			const int oldLen = Length();
+			Reserve(oldLen + otherLen + 2);
+			wchar_t* curr = ptr + oldLen - 1;
+			while (curr >= ptr + index)
+			{
+				curr[otherLen + 1] = *curr--;
+			}
+			memcpy(ptr + index, other, otherLen * sizeof(wchar_t));
+			size += otherLen;
+			ptr[++size] = L'\0';
 			return StrResult::Success;
 		}
 
-		StrResult Insert(int index, const WString& value)
+		inline StrResult Insert(int index, const WString& value)
 		{
-			return Insert(index, value.c_str());
+			return Insert(index, value.CStr());
 		}
 
-		WString& operator+= (char _char)		     { Append(_char);  return *this; }
-		WString& operator+= (const wchar_t* _char)   { Append(_char);  return *this; }
-		WString& operator+= (const WString& string)  { Append(string); return *this; }
+		void Append(long value) { wchar_t buff[16]; swprintf(buff, L"%lld", value); Append(buff); }
+		void Append(int  value) { wchar_t buff[16]; swprintf(buff, L"%d", value);   Append(buff); }
+		void Append(float value) { wchar_t buff[16]; swprintf(buff, L"%f", value);   Append(buff); }
 
-		void Append(wchar_t _char)
+		static WString From(long value) { wchar_t buff[16]; swprintf(buff, L"%lld", value); return buff; }
+		static WString From(int  value) { wchar_t buff[16]; swprintf(buff, L"%d", value); return buff; }
+		static WString From(float value) { wchar_t buff[16]; swprintf(buff, L"%f", value); return buff; }
+
+		void operator += (char _char) { AppendChar(_char); }
+		void operator += (const WString& string) { Append(string); }
+
+		void operator += (long value) { Append(value); }
+		void operator += (int  value) { Append(value); }
+		void operator += (float value) { Append(value); }
+
+		WString operator + (wchar_t _char)         const { WString res = *this; res.Append(_char);  return res; }
+		WString operator + (const WString& string) const { WString res = *this; res.Append(string); return res; }
+
+		WString operator + (long value) const { WString res = *this; res.Append(value); return *this; }
+		WString operator + (int  value) const { WString res = *this; res.Append(value); return *this; }
+		WString operator + (float value) const { WString res = *this; res.Append(value); return *this; }
+
+		void AppendChar(wchar_t _char)
 		{
 			CapacityCheck(1);
 			ptr[size++] = _char;
+			ptr[size] = '\0';
 		}
 
-		void Append(const wchar_t* _char)
+		WString Append(const wchar_t* _char)
 		{
-			const int len = std::wcslen(_char);
+			const int len = wcslen(_char);
 			CapacityCheck(len);
-		#pragma warning(suppress : 4996)
-			std::wcsncat(ptr, _char, len+1);
+#pragma warning(suppress : 4996)
+			wcsncat(ptr, _char, len + 1ull);
 			size += len;
+			ptr[size] = '\0';
+			return *this;
+		}
+
+		WString Append(const wchar_t* _char, const size_t len)
+		{
+			CapacityCheck((int)len);
+#pragma warning(suppress : 4996)
+			wcsncat(ptr, _char, len + 1ull);
+			size += len;
+			ptr[size] = '\0';
+			return *this;
 		}
 
 		WString AppendCopy(const wchar_t* _char) const
 		{
-			const int len = std::wcslen(_char);
-			wchar_t* buffer = (wchar_t*)std::calloc(len + size, sizeof(wchar_t));
-			std:wmemcpy(buffer, ptr, size);
-		#pragma warning(suppress : 4996)
-			std::wcsncat(buffer, _char, len + 1);
+			const size_t len = wcslen(_char);
+			wchar_t* buffer = (wchar_t*)calloc(len + size, sizeof(wchar_t));
+			wmemcpy(buffer, ptr, (size_t)size);
+#pragma warning(suppress : 4996)
+			wcsncat(buffer, _char, len + 1ull);
 			return WString(buffer);
 		}
 
-		void Append(const WString& string) { Append(string.c_str()); }
+		void Append(const WString& string) { Append(string.CStr()); }
 
 		// Find
-		int FindIndex(wchar_t _char) const
+		inline int FindIndex(wchar_t _char) const
 		{
 			for (int i = 0; i < size; ++i)
 				if (ptr[i] == _char) return i;
 			return false;
 		}
 
-		static inline bool StrnCmp(const wchar_t* a, const wchar_t* b, int size)
+		inline int FindIndex(const wchar_t* str) const
 		{
-			return !std::wcsncmp(a, b, size);
-		}
-
-		int FindIndex(const wchar_t* str) const
-		{
-			const int len = std::wcslen(str);
-			for (int i = 0; i < size - (len-1); ++i)
-				if (!std::wcsncmp(str, ptr + i, len)) return i;
+			const int len = wcslen(str);
+			for (int i = 0; i < size - (len - 1); ++i)
+				if (!wcsncmp(str, ptr + i, len)) return i;
 			return -1;
 		}
 
-		// Remove
-		StrResult Remove(wchar_t _char)
+		inline int FindIndex(const wchar_t* str, const size_t wlen) const
 		{
-			int index = FindIndex(_char);
-			if (index == 0) { Clear(); return StrResult::Success; }
+			const int len = (int)wlen;
+			for (int i = 0; i < size - (len - 1); ++i)
+				if (!wcsncmp(str, ptr + i, len)) return i;
+			return -1;
+		}
+		// Remove
+		inline StrResult Remove(wchar_t _char)
+		{
+			const int index = FindIndex(_char);
 			if (index == -1) return StrResult::NotFinded;
-			std::wmemmove(ptr + index, ptr + index + 1, 1);
-			--size;
+			memmove(ptr + index, ptr + index + 1, sizeof(wchar_t));
+			ptr[--size] = L'\0';
 			return StrResult::Success;
 		}
 
-		StrResult Remove(const wchar_t* _char)
+		inline StrResult Remove(const wchar_t* _char)
 		{
-			const int len = std::wcslen(_char);
-			wchar_t* start = std::wcsstr(ptr, _char);
-			if (start == nullptr) return StrResult::NotFinded;
-			std::wmemset(start, 0, len );
-			std::wmemmove(start, start + len, len);
-			size -= len;
-			return StrResult::Success;
+			const int otherLen = wcslen(_char);
+			const int findIndex = FindIndex(_char, otherLen);
+
+			if (findIndex != -1)
+			{
+				wchar_t* findPos = ptr + findIndex;
+				wchar_t* otherEnd = findPos + otherLen;
+				// shift all right characters to the find pos
+				while (*otherEnd) {
+					*findPos++ = *otherEnd++;
+				}
+				// set all removed characters to null terminator
+				while (*findPos) {
+					*findPos++ = L'\0';
+				}
+
+				return StrResult::Success;
+			}
+			return StrResult::NotFinded;
+		}
+
+		inline StrResult StartsWith(const wchar_t* other, int len) const
+		{
+			if (size < len) StrResult::IndexOutOfArray;
+
+			while (len--)
+			{
+				if (other[len] != ptr[len]) return StrResult::False;
+			}
+			return StrResult::True;
+		}
+
+		inline StrResult StartsWith(const WString& other) const
+		{
+			int len = other.Length();
+			if (size < len) StrResult::IndexOutOfArray;
+
+			while (len--)
+			{
+				if (other[len] != ptr[len]) return StrResult::False;
+			}
+			return StrResult::True;
 		}
 
 		StrResult Remove(const WString& str)
 		{
-			return Remove(str.c_str());
+			return Remove(str.CStr());
 		}
 
 		StrResult Find(wchar_t _char) const { return FindIndex(_char) ? StrResult::Success : StrResult::NotFinded; }
 
 		StrResult Find(const wchar_t* _char) const { return FindIndex(_char) ? StrResult::Success : StrResult::NotFinded; }
 
-		StrResult Find(const WString& str) const { return FindIndex(str.c_str()) ? StrResult::Success : StrResult::NotFinded; }
+		StrResult Find(const WString& str) const { return FindIndex(str.CStr()) ? StrResult::Success : StrResult::NotFinded; }
 
 		StrResult Replace(int start, int end, const wchar_t* cstr)
 		{
 			if (end > capacity) return StrResult::IndexOutOfArray;
 			const int len = end - start;
-			std::wmemcpy(ptr + start, cstr, len);
+			wmemcpy(ptr + start, cstr, len);
 			return StrResult::Success;
 		}
 
-		StrResult Replace(const wchar_t* old, const wchar_t* _new, int searchStartIndex = 0)
+		StrResult Replace(const wchar_t* from, const wchar_t* _new)
 		{
-			const int len = std::wcslen(_new);
-			const int oldLen = std::wcslen(old);
-			wchar_t* sp;
+			const int fromLen = (int)wcslen(from);
+			const int toLen = (int)wcslen(_new);
 
-			if ((sp = std::wcsstr(ptr + searchStartIndex, old)) == nullptr) {
-				return StrResult::NotFinded;
+			int fromIndex = FindIndex(from, fromLen);
+
+			if (fromIndex != -1) // this means finded
+			{
+				const int newLen = Length() + (fromLen - toLen);
+				Reserve(newLen);
+				size = newLen;
+
+				const size_t tailLen = wcslen(ptr + fromIndex + fromLen);
+				memmove(ptr + fromIndex + toLen, ptr + fromIndex + fromLen, tailLen + 1ull);
+				memcpy(ptr + fromIndex, _new, toLen);
+				return StrResult::Success;
 			}
-
-			const int diff = std::abs(len - oldLen);
-			const int tailLen = std::wcslen(sp + oldLen);
-
-			std::wmemmove(sp + len, sp + oldLen, tailLen + 1);
-			std::wmemcpy(sp, _new, len);
-			size += len - oldLen;
-
-			return StrResult::Success;
+			return StrResult::NotFinded;
 		}
 		/// <summary> not suitable for big strings (1k-2k char) you can generate your own algorithm for that </summary>
-		StrResult ReplaceAll(const wchar_t* old, const wchar_t* _new)
+		/// <returns> removed instance count </returns>
+		int ReplaceAll(const wchar_t* old, const wchar_t* _new)
 		{
-			bool finded = false;
+			const int _newSize = wcslen(_new);
+			int removedCount = 0;
 			StrResult strResult = StrResult::Success;
-			int currentIndex = 0;
-			const int _newSize = std::wcslen(_new); 
 
 			while (strResult == StrResult::Success) {
-				strResult = Replace(old, _new, currentIndex);
-				currentIndex += _newSize;
+				strResult = Replace(old, _new);
+				++removedCount;
 			}
-			return finded ? StrResult::Success : StrResult::NotFinded;
+			return removedCount;
 		}
 
 		StrResult Replace(const WString& old, const WString& _new)
 		{
-			return Replace(old.c_str(), _new.c_str());
+			return Replace(old.CStr(), _new.CStr());
 		}
 
 		String ToString() const
 		{
-			char* characters = (char*)std::malloc(size + 1);
-		#pragma warning(suppress : 4996)
-			std::wcstombs(characters, ptr, size + 1);
+			char* characters = (char*)malloc(size + 1ull);
+#pragma warning(suppress : 4996)
+			wcstombs(characters, ptr, size + 1ull);
 			return String(characters);
 		}
 
@@ -553,55 +752,50 @@ namespace HS
 		{
 			if (begin > size) return WString();
 			const int buffLen = end - begin;
-			wchar_t* buffer = (wchar_t*)std::calloc(buffLen + 1, sizeof(wchar_t));
-			std::wmemcpy(buffer, ptr, buffLen );
+			wchar_t* buffer = (wchar_t*)calloc(buffLen + 1ull, sizeof(wchar_t));
+			wmemcpy(buffer, ptr, (size_t)buffLen);
 			return WString(buffer);
 		}
-		
-		friend std::ostream& operator<<(std::ostream& cout, const WString& wstr)  {
-			return cout << wstr.c_str();
+
+		friend std::ostream& operator << (std::ostream& cout, const WString& wstr) {
+			return cout << ToCharArray(wstr.CStr());
 		}
 
+		int Capacity() const { return capacity; }
+		int Length()   const { return size; }
+
 	private:
-		void CapacityCheck(int len)
+		FINLINE void CapacityCheck(int len)
 		{
-			if (size + len + 1 >= capacity) {
-				capacity += 32 + len;
-				ptr = (wchar_t*)std::realloc(ptr, capacity * sizeof(wchar_t));
+			if (size + len + 1 >= capacity)
+			{
+				int newLen = size + len;
+				capacity = newLen + (newLen / 2);
+				ptr = (wchar_t*)realloc(ptr, (size_t)capacity * sizeof(wchar_t));
 			}
 		}
 
 	private:
 		int capacity;
-	public:
 		int size;
+	public:
 		wchar_t* ptr = nullptr;
 	};
 
-	static inline WString ToWString(String string)
+	inline WString ToWString(const String& string)
 	{
-		wchar_t* buffer = (wchar_t*)std::malloc(string.size + 1 * sizeof(wchar_t));
-		#pragma warning(suppress : 4996)
-		std::mbstowcs(buffer, string.ptr, string.size + 1);
+		wchar_t* buffer = (wchar_t*)malloc(string.Length() + 1ull * sizeof(wchar_t));
+#pragma warning(suppress : 4996)
+		mbstowcs(buffer, string.CStr(), string.Length() + 1ull);
 		return WString(buffer);
 	}
 
-	static inline wchar_t* ToWCharArray(const char* string)
+	inline String ToString(const WString& string)
 	{
-		const int len = std::strlen(string);
-		wchar_t* buffer = (wchar_t*)std::malloc(len + 1 * sizeof(wchar_t));
-		#pragma warning(suppress : 4996)
-		std::mbstowcs(buffer, string, len + 1);
-		return buffer;
-	}
-
-	static inline char* ToCharArray(const wchar_t* string)
-	{
-		const int len = std::wcslen(string);
-		char* buffer = (char*)std::malloc(len + 1);
-		#pragma warning(suppress : 4996)
-		std::wcstombs(buffer, string, len + 1);
-		return buffer;
+		char* buffer = (char*)malloc(string.Length() + 1ull * sizeof(char));
+#pragma warning(suppress : 4996)
+		wcstombs(buffer, string.CStr(), string.Length() + 1ull);
+		return String(buffer);
 	}
 }
 
