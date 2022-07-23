@@ -2,8 +2,52 @@
 #include "HContainers.hpp"
 #include "HString.hpp"
 #include "HGraph.hpp"
+#include "StaticHashMap.hpp"
 
 using namespace HS;
+
+#include <chrono>
+#include <iostream>
+
+#ifndef NDEBUG
+#	define CSTIMER(message) Timer timer = Timer(message);
+#else
+#   define CSTIMER(message) // Timer timer = Timer(message);
+#endif
+
+struct Timer
+{
+	std::chrono::time_point<std::chrono::high_resolution_clock> start_point;
+	bool printMilisecond;
+
+	const char* message;
+
+	Timer(const char* _message) : message(_message), printMilisecond(true)
+	{
+		start_point = std::chrono::high_resolution_clock::now();
+	}
+
+	const double GetTime()
+	{
+		using namespace std::chrono;
+		auto end_point = high_resolution_clock::now();
+		auto start = time_point_cast<microseconds>(start_point).time_since_epoch().count();
+		auto end = time_point_cast<microseconds>(end_point).time_since_epoch().count();
+		printMilisecond = false;
+		return (end - start) * 0.001;
+	}
+
+	~Timer()
+	{
+		using namespace std::chrono;
+		if (!printMilisecond) return;
+		auto end_point = high_resolution_clock::now();
+		auto start = time_point_cast<microseconds>(start_point).time_since_epoch().count();
+		auto end = time_point_cast<microseconds>(end_point).time_since_epoch().count();
+		auto _duration = end - start;
+		std::cout << message << (_duration * 0.001) << "ms" << std::endl;
+	}
+};
 
 class Test
 {
@@ -58,36 +102,70 @@ void IterateG(Graph<City, Road>::Edge* edge, Graph<City, Road>::Vertex* vertex)
 
 typedef Graph<City, Road> CountryGraph;
 
+bool RemoveLessThan2(const int& i) { return i < 5; }
+
 int main()
 {
-	CountryGraph graph = CountryGraph();
+
+	{
+		StaticHashMap<int, float> hashMap;
+		for (int i = 0; i < 80; ++i)
+			hashMap.Insert(i, (float)i * 0.5f);
+		
+		bool contains = hashMap.Contains(5);
+		float& find = hashMap.Find(40);
+		hashMap[5] += 55.0f;
+	}
+
+	{
+		Array<int> removeTest = Array<int>(10);
+		for (int i = 0; i < 10; i++) removeTest.Add(i);
+		CSTIMER("RemoveAll: ");
+		removeTest.RemoveAll(RemoveLessThan2);
+		for (auto& i : removeTest)
+		{
+			std::cout << i << std::endl;
+		}
+	}
+	{
+		Array<int> removeTest1 = Array<int>(4001);
+		for (int i = 0; i < 4001; i++) removeTest1.Add(i % 5);
+		
+		CSTIMER("Remove: ");
+		HArrayResult result;
+		do {
+			result = removeTest1.Remove(RemoveLessThan2);
+		} while (result == HArrayResult::Success);
+	}
 	
-	VertexIndex handle0 = graph.AddVertex(City("Istanbul", 16'000'000, 3400));
-	VertexIndex handle1 = graph.AddVertex(City("Ankara"  , 6'000'000, 06000));
-	VertexIndex handle2 = graph.AddVertex(City("Izmir"   , 5'000'000, 00000));
-	VertexIndex handle3 = graph.AddVertex(City("Bursa"   , 3'500'000, 00000));
+	CountryGraph graph = CountryGraph();
 
-	graph.ConnectEdge(handle0, handle1, Road("E5", 500, 120));
-	graph.ConnectEdge(handle1, handle2, Road("Bla", 400, 120));
-	graph.ConnectEdge(handle2, handle3, Road("Bla", 200, 120));
+	VertexIndex turk0 = graph.AddVertex(City("Istanbul", 16'000'000, 3400));
+	VertexIndex turk1 = graph.AddVertex(City("Ankara"  , 6'000'000, 06000));
+	VertexIndex turk2 = graph.AddVertex(City("Izmir"   , 5'000'000, 00000));
+	VertexIndex turk3 = graph.AddVertex(City("Bursa"   , 3'500'000, 00000));
 
-	VertexIndex secondHandle0 = graph.AddVertex(City("Berlin" , 3'600'000, 0000));
-	VertexIndex secondHandle1 = graph.AddVertex(City("Cologne", 1'600'000, 0000));
-	VertexIndex secondHandle2 = graph.AddVertex(City("Hamburg" , 1'800'000, 0000));
+	graph.ConnectEdge(turk0, turk1, Road("E5", 500, 120));
+	graph.ConnectEdge(turk1, turk2, Road("Bla", 400, 120));
+	graph.ConnectEdge(turk2, turk3, Road("Bla", 200, 120));
 
-	graph.ConnectEdge(secondHandle0, secondHandle1, Road("Road Bla", 255, 120));
-	graph.ConnectEdge(secondHandle1, secondHandle2, Road("Road Bla", 255, 120));
+	VertexIndex german0 = graph.AddVertex(City("Berlin" , 3'600'000, 0000));
+	VertexIndex german1 = graph.AddVertex(City("Cologne", 1'600'000, 0000));
+	VertexIndex german2 = graph.AddVertex(City("Hamburg" , 1'800'000, 0000));
+
+	graph.ConnectEdge(german0, german1, Road("Road Bla", 255, 120));
+	graph.ConnectEdge(german1, german2, Road("Road Bla", 255, 120));
 
 	std::cout << "DFS" << std::endl;
 	DFS<City, Road> dfs = DFS<City, Road>(&graph);
- 	dfs.Iterate(secondHandle0, IterateG);
+	dfs.Iterate(german0, IterateG);
 	std::cout << std::endl;
 	std::cout << "BFS" << std::endl;
 	BFS<City, Road> bfs = BFS<City, Road>(&graph);
-	bfs.Iterate(secondHandle0, IterateG);
+	bfs.Iterate(german0, IterateG);
 
 	MinimumSpanningTreePrim<City, Road> prim = MinimumSpanningTreePrim<City, Road>(graph);
-	CountryGraph::Vertex** primRes = prim.Solve(handle0);
+	CountryGraph::Vertex** primRes = prim.Solve(turk0);
 	int index = 0;
 
 	while(primRes[index] != nullptr) {
@@ -107,7 +185,7 @@ int main()
 	string.Remove("deppend");
 	string.Replace("sad", "happy");
 	// string.Insert(0, "happy ");
-	String subString = string.SubString(0, 3);
+	String subString = string.SubString(0, 5);
 	std::cout << "substring: " << subString << std::endl;
 	std::cout << string << std::endl;
 	
@@ -192,4 +270,3 @@ int main()
 
 	return bt.Search(2) != nullptr; // binary tree search
 }
-
