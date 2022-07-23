@@ -7,6 +7,7 @@
 #include "StaticHashMap.hpp"
 #include "BinaryTree.hpp"
 #include "Pair.hpp"
+#include <unordered_map>
 
 using namespace HS;
 
@@ -105,30 +106,52 @@ void IterateG(Graph<City, Road>::Edge* edge, Graph<City, Road>::Vertex* vertex)
 typedef Graph<City, Road> CountryGraph;
 
 bool RemoveLessThan2(const int& i) { return i < 5; }
+float sum = 0;
+void Sum(float& flt) { sum += flt; }
 
 int main()
 {
 
 	{
-		StaticHashMap<int, float> hashMap;
-		for (int i = 0; i < 80; ++i)
-			hashMap.Insert(i, (float)i * 0.5f);
-		
-		bool contains = hashMap.Contains(5);
-		float* find = hashMap.Find(40);
-		hashMap[5] += 55.0f;
-		
-		int len = 0;
-		for (auto& it : hashMap)
-		{
-			std::cout << it << std::endl;
-			if (len++ > 10) break;
-		}
+		std::cout << "Static Hash Map" << std::endl;
+		// CSTIMER("Static Hash Map")
 
-		std::cout << hashMap[40] << std::endl;
-		std::cout << hashMap[5] << std::endl;
+		StaticHashMap<int, float> hashMap;
+		{
+			CSTIMER("initialize: ")
+			for (int i = 0; i < 80; ++i)
+				hashMap.Insert(i, (float)i * 0.5f);
+		}
+		{
+			CSTIMER("iterate: ")
+			StaticHashMap<int, float>::Iterator it = hashMap.begin();
+			const StaticHashMap<int, float>::Iterator end = hashMap.end();
+			
+			for (; it < end; ++it)
+			{
+				sum += *it;
+			}
+		}
 	}
 	
+	{
+		std::cout << "unordered_map" << std::endl;
+		// CSTIMER("unordered_map End")
+		float sum = 0;
+
+		std::unordered_map<int, float> hashMap;
+		{
+			CSTIMER("initialize: ")
+			for (int i = 0; i < 80; ++i)
+				hashMap.emplace(i, (float)i * 0.5f);
+		}
+		{
+			CSTIMER("iterate: ")
+			for (auto& it : hashMap) sum += it.second;
+		}
+		std::cout << sum << std::endl;
+	}
+
 	return 0;
 
 	{

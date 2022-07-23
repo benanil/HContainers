@@ -73,16 +73,17 @@ namespace HS
 	{
 		template <typename T> unsigned int Hash(const T& val)
 		{
+			static_assert("you must define custom hash function");
 			return 0;
 		}
 
-		template <typename float> unsigned int Hash(float f)
+		template <> unsigned int Hash(const float& f)
 		{
 			union Converter { float fVal; uint uval; } converter;
 			return converter.uval;
 		}
 
-		template <typename int> unsigned int Hash(int in)
+		template <> unsigned int Hash(const int& in)
 		{
 			return (unsigned int)in;
 		}
