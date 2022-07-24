@@ -46,4 +46,25 @@ namespace HS
 		int capacity;
 		T* ptr;
 	};
+
+	template<typename T, int MaxSize>
+	class FixedStack
+	{
+	private:
+		int size = 0;
+	public:
+		T arr[MaxSize];
+		HSCONSTEXPR FixedStack() { }
+
+		HSCONSTEXPR void Push(const T& value) { arr[size++] = value; }
+		HSCONSTEXPR T&  Pop() { return arr[--size]; }
+
+		HSCONSTEXPR  bool Any() const { return size > 0; }
+
+		HSCONSTEXPR T* begin() { return arr; }
+		HSCONSTEXPR T* end()   { return arr + size; }
+		HSCONSTEXPR const T* cbegin() const { return arr; }
+		HSCONSTEXPR const T* cend()   const { return arr + size; }
+	};
+
 }

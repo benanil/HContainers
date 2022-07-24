@@ -119,6 +119,14 @@ namespace HS
 
 		inline bool Any() { return GetSize() > 0; }
 
+		
+		void Squeeze()
+		{
+			const int newSize = GetSize() - rear;
+			int first = 0, second = rear;
+			while (first < newSize) ptr[first++] = ptr[second++];
+		}
+
 		void Enqueue(T value) {
 			if (front + 1 >= capacity)
 			{
@@ -175,6 +183,35 @@ namespace HS
 		int capacity;
 		int front = 0;
 		int rear  = 0;
+	};
+
+	template<typename T, int MaxSize>
+	class FixedQueue
+	{
+	public:
+		T ptr[MaxSize];
+	public:
+
+		HSCONSTEXPR FixedQueue() { }
+
+		HSCONSTEXPR int GetSize() const { return front - rear; }
+		HSCONSTEXPR bool Any() const { return GetSize() > 0; }
+
+		HSCONSTEXPR  void Enqueue(T value) { ptr[front++] = value; }
+
+		HSCONSTEXPR  T Dequeue() { return ptr[rear++]; }
+
+		HSCONSTEXPR void Squeeze()
+		{
+			const int newSize = GetSize() - rear;
+			int first = 0, second = rear;
+			while (first < newSize) ptr[first++] = ptr[second++];
+		}
+
+	private:
+		int capacity;
+		int front = 0;
+		int rear = 0;
 	};
 
 }

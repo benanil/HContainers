@@ -21,6 +21,33 @@
 #	endif
 #endif 
 
+// you may don't want to use constexpr because of compile times.
+#define HUSTLE_USE_CONSTEXPR
+
+#ifdef HUSTLE_USE_CONSTEXPR
+#	define HSCONSTEXPR constexpr
+#else
+#	define HSCONSTEXPR 
+#endif
+
+#ifndef VECTORCALL
+#   ifdef _MSC_VER
+#		define VECTORCALL __vectorcall
+#   elif __CLANG__
+#       define VECTORCALL [[clang::vectorcall]] 
+#	elif __GNUC__
+#       define VECTORCALL  
+#   endif
+#endif
+
+#ifndef AXGLOBALCONST
+#	if _MSC_VER
+#		define AXGLOBALCONST extern const __declspec(selectany)
+#	elif defined(__GNUC__) && !defined(__MINGW32__)
+#		define AXGLOBALCONST extern const __attribute__((weak))
+#	endif
+#endif
+
 // coppied from here: winnt.h line 2481  DEFINE_ENUM_FLAG_OPERATORS we are not using this because we don't want to include winnt.h
 // Define operator overloads to enable bit operations on enum values that are
 // used to define flags. Use HS_CREATE_ENUM_OPERATORS(YOUR_TYPE) to enable these
@@ -89,6 +116,12 @@ namespace HS
 		}
 	}
 
+	enum class HArrayResult : int
+	{
+		None, Success, Fail, IndexBoundsOutOfArray, NotFinded, Size0
+	};
+
+
 	// very fast hash function + compile time
 	static inline constexpr uint KnuthHash(uint a, uint shift)
 	{
@@ -126,7 +159,7 @@ namespace HS
 	}
 	
 	template<typename T>
-	constexpr void MemSetRef(T* a, T value, int count)
+	constexpr void MemSetRef(T* a, const T& value, int count)
 	{
 		while (count--) a[count] = value;
 	}

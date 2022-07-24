@@ -106,48 +106,64 @@ void IterateG(Graph<City, Road>::Edge* edge, Graph<City, Road>::Vertex* vertex)
 typedef Graph<City, Road> CountryGraph;
 
 bool RemoveLessThan2(const int& i) { return i < 5; }
-float sum = 0;
-void Sum(float& flt) { sum += flt; }
 
 int main()
 {
 
+	struct Value 
+	{
+		float f;
+		Value() : f(00.0f) { }
+		Value(const Value& other) : f(other.f) {}
+		Value(float val) : f(val) { }
+	};
+
 	{
 		std::cout << "Static Hash Map" << std::endl;
-		// CSTIMER("Static Hash Map")
+		CSTIMER("Static Hash Map")
+		float sum = 0;
 
-		StaticHashMap<int, float> hashMap;
+		StaticHashMap<int, Value> hashMap;
+		
 		{
 			CSTIMER("initialize: ")
-			for (int i = 0; i < 80; ++i)
-				hashMap.Insert(i, (float)i * 0.5f);
+			for (int i = 0; i < 62 * 4; ++i)
+				hashMap.Emplace(i, Value((float)i * 0.5f));
 		}
+
+		// hashMap.Initialize();
+		// hashMap.Clear();
+
 		{
 			CSTIMER("iterate: ")
-			StaticHashMap<int, float>::Iterator it = hashMap.begin();
-			const StaticHashMap<int, float>::Iterator end = hashMap.end();
-			
-			for (; it < end; ++it)
-			{
-				sum += *it;
-			}
+			for (int i = 0; i < 62 * 4; ++i)
+				sum += hashMap.arr[i].f;
 		}
+		{
+			CSTIMER("removing: ")
+			for (int i = 0; i < 62 * 4; ++i) hashMap.Remove(i);
+		}
+		std::cout << sum << std::endl;
 	}
 	
 	{
 		std::cout << "unordered_map" << std::endl;
-		// CSTIMER("unordered_map End")
+		CSTIMER("unordered_map End")
 		float sum = 0;
 
 		std::unordered_map<int, float> hashMap;
 		{
 			CSTIMER("initialize: ")
-			for (int i = 0; i < 80; ++i)
+			for (int i = 0; i < 62 * 4; ++i)
 				hashMap.emplace(i, (float)i * 0.5f);
 		}
 		{
 			CSTIMER("iterate: ")
 			for (auto& it : hashMap) sum += it.second;
+		}
+		{
+			CSTIMER("removing: ")
+			for (int i = 0; i < 62 * 4; ++i) hashMap.erase(i);
 		}
 		std::cout << sum << std::endl;
 	}

@@ -3,6 +3,7 @@
 #include <iosfwd> // for overriding << operator for std::cout
 #include <sstream>
 #include <stdlib.h>
+#include <cmath>
 
 namespace HS
 {
@@ -305,6 +306,29 @@ namespace HS
 			while (len--)
 			{
 				if (other[len] != ptr[len]) return StrResult::False;
+			}
+			return StrResult::True;
+		}
+
+		inline StrResult EndsWith(const char* other, int len) const
+		{
+			if (size < len) StrResult::IndexOutOfArray;
+			const int diff = abs(len - size);
+			while (len--)
+			{
+				if (other[len] != ptr[len + diff]) return StrResult::False;
+			}
+			return StrResult::True;
+		}
+
+		StrResult EndsWith(const String& other) const
+		{
+			int len = other.Length();
+			if (size < len) StrResult::IndexOutOfArray;
+			const int diff = abs(len - size);
+			while (len--)
+			{
+				if (other[len] != ptr[len+ diff]) return StrResult::False;
 			}
 			return StrResult::True;
 		}

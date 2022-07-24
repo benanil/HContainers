@@ -3,11 +3,6 @@
 
 namespace HS
 {
-	enum class HArrayResult : int
-	{
-		None, Success, Fail, IndexBoundsOutOfArray, NotFinded, Size0
-	};
-
 	template<typename T>
 	class Array
 	{
@@ -74,7 +69,7 @@ namespace HS
 				ptr = (T*)std::realloc(ptr, capacity * sizeof(T));
 			}
 
-			std::memmove(ptr + index + 1, ptr + index, sizeof(T) * std::abs(index - size));
+			std::memmove(ptr + index + 1, ptr + index, sizeof(T) * abs(index - size));
 			ptr[index] = value;
 			++size;
 		}
@@ -163,7 +158,7 @@ namespace HS
 				}
 			}
 
-			memset(ptr + freeIndex, 0, size - freeIndex);
+			memset(ptr + freeIndex, 0, size - freeIndex * sizeof(T));
 			int result = size - freeIndex;
 			size = freeIndex;
 
