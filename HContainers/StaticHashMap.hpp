@@ -1,3 +1,5 @@
+// inspired from 
+// Game Engine Architecture book page 456 and Facebook Folly F12Map
 #pragma once
 #include "Common.hpp"
 #include <utility>
@@ -8,7 +10,7 @@ namespace HS
 	// const size, non growable
 	// all operations is O(1), and memory allocation, initialization is also fast,
 	// chace frendly stack allocated contigues memory
-	template<typename Key, typename Value, int Size = 90, int8 BucketSize = 32>
+	template<typename Key, typename Value, int Size = 90, int8 BucketSize = 8>
 	class StaticHashMap
 	{
 	private:
@@ -39,7 +41,7 @@ namespace HS
 		{
 			uint bucketIndex = Hasher::Hash(key) % Size;
 			uint arrIndex = bucketIndex * BucketSize + (numElements[bucketIndex]++);
-			assert(bucketIndex < BucketSize); // BucketSize is small
+			assert(numElements[bucketIndex] <= BucketSize); // BucketSize is small
 			assert(arrIndex < (Size * BucketSize)); // Size is small
 			keys[arrIndex] = key;
 			arr[arrIndex] = std::move(value);
@@ -50,7 +52,7 @@ namespace HS
 		{
 			uint bucketIndex = Hasher::Hash(key) % Size;
 			uint arrIndex = bucketIndex * BucketSize + (numElements[bucketIndex]++);
-			assert(bucketIndex < BucketSize); // BucketSize is small
+			assert(numElements[bucketIndex] <= BucketSize); // BucketSize is small
 			assert(arrIndex < (Size * BucketSize)); // Size is small
 
 			keys[arrIndex] = key;
@@ -112,8 +114,8 @@ namespace HS
 
 			valueIndex += numElements[bucketIndex]++;
 
-			assert(bucketIndex < BucketSize); // BucketSize is small
-			assert(valueIndex  < (Size * BucketSize)); // Size is small
+			assert(numElements[bucketIndex] <= BucketSize); // BucketSize is small
+			assert(valueIndex < (Size * BucketSize)); // Size is small
 
 			keys[valueIndex] = key;
 			arr[valueIndex] = Value();
