@@ -98,21 +98,21 @@ namespace HS
 
 	namespace Hasher
 	{
-		template <typename T> unsigned int Hash(const T& val)
+		template <typename T> ulong Hash(const T& val)
 		{
 			static_assert("you must define custom hash function");
 			return 0;
 		}
 
-		template <> unsigned int Hash(const float& f)
+		template <> ulong Hash(const float& f)
 		{
 			union Converter { float fVal; uint uval; } converter;
 			return converter.uval;
 		}
 
-		template <> unsigned int Hash(const int& in)
+		template <> ulong Hash(const int& in)
 		{
-			return (unsigned int)in;
+			return (ulong)in;
 		}
 	}
 
@@ -120,7 +120,6 @@ namespace HS
 	{
 		None, Success, Fail, IndexBoundsOutOfArray, NotFinded, Size0
 	};
-
 
 	// very fast hash function + compile time
 	static inline constexpr uint KnuthHash(uint a, uint shift)
@@ -147,19 +146,25 @@ namespace HS
 	}
 
 	template<typename T>
-	constexpr void MemCpy(T* a, const T* b, int count)
+	constexpr void ArrayCpy(T* a, const T* b, int count)
 	{
 		while (count--) a[count] = b[count];
 	}
 	
 	template<typename T>
-	constexpr void MemSet(T* a, T value, int count)
+	constexpr void ArrayMove(T* a, T* b, int count)
+	{
+		while (count--) a[count] = std::move(b[count]);
+	}
+
+	template<typename T>
+	constexpr void ArraySet(T* a, T value, int count)
 	{
 		while (count--) a[count] = value;
 	}
 	
 	template<typename T>
-	constexpr void MemSetRef(T* a, const T& value, int count)
+	constexpr void ArraySetRef(T* a, const T& value, int count)
 	{
 		while (count--) a[count] = value;
 	}

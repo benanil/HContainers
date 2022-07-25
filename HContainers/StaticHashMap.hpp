@@ -1,72 +1,69 @@
 #pragma once
 #include "Common.hpp"
-#include "Pair.hpp"
+#include <utility>
 #include <cassert>
 
 namespace HS
 {
-
 	// const size, non growable
 	// all operations is O(1), and memory allocation, initialization is also fast,
 	// chace frendly stack allocated contigues memory
-	// prime numbers more efficient 
-	// 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97.
-	template<typename Key, typename Value, int Size = 62, int8 BucketSize = 4>
+	template<typename Key, typename Value, int Size = 90, int8 BucketSize = 32>
 	class StaticHashMap
 	{
-	public:
-		mutable int8 numElements[Size] { 0 };
-		mutable Key keys[Size * BucketSize] { };
+	private:
+		int8 numElements[Size] { 0 };
+		Key keys[Size * BucketSize] { };
 		mutable Value arr[Size * BucketSize] { };
 	public:
 
 		HSCONSTEXPR StaticHashMap()  { }
-		
+
 		~StaticHashMap()  { }
 
 		HSCONSTEXPR StaticHashMap(const StaticHashMap& other) // copy constructor
 		{
-			MemCpy(numElements, other.numElements, BucketSize);
-			MemCpy(arr, other.arr, Size * BucketSize);
+			ArrayCpy(numElements, other.numElements, BucketSize);
+			ArrayCpy(arr, other.arr, Size * BucketSize);
 		}
-		
+
 		HSCONSTEXPR StaticHashMap(const StaticHashMap&& other) // move constructor, we cant move just copy
 		{
-			MemCpy(numElements, other.numElements, BucketSize);
-			MemCpy(arr, other.arr, Size * BucketSize);
+			ArrayMove(numElements, other.numElements, BucketSize);
+			ArrayMove(arr, other.arr, Size * BucketSize);
 		}
 
 	public:
 
-		HSCONSTEXPR inline void Insert(const Key& key, const Value& value) const
+		HSCONSTEXPR inline void Insert(const Key& key, Value&& value)
 		{
 			uint bucketIndex = Hasher::Hash(key) % Size;
 			uint arrIndex = bucketIndex * BucketSize + (numElements[bucketIndex]++);
-			assert((bucketIndex < BucketSize || arrIndex < (Size* BucketSize)), "too many object pushed please increase Size or BucketSize");
-
+			assert(bucketIndex < BucketSize); // BucketSize is small
+			assert(arrIndex < (Size * BucketSize)); // Size is small
 			keys[arrIndex] = key;
-			arr[arrIndex] = value;
+			arr[arrIndex] = std::move(value);
 		}
 
 		template<typename... T>
-		HSCONSTEXPR inline void Emplace(const Key& key, T&&... values) const
+		HSCONSTEXPR inline void Emplace(const Key& key, T&&... values)
 		{
 			uint bucketIndex = Hasher::Hash(key) % Size;
 			uint arrIndex = bucketIndex * BucketSize + (numElements[bucketIndex]++);
-			assert((bucketIndex < BucketSize || arrIndex < (Size * BucketSize)), "too many object pushed please increase Size or BucketSize");
+			assert(bucketIndex < BucketSize); // BucketSize is small
+			assert(arrIndex < (Size * BucketSize)); // Size is small
 
 			keys[arrIndex] = key;
 			arr[arrIndex] = Value(std::forward<T>(values)...);
 		}
 
 		// returns true if removed correctly
-		HSCONSTEXPR bool Remove(const Key& key) const
+		HSCONSTEXPR bool Remove(const Key& key)
 		{
-			const uint bucketIndex = Hasher::Hash(key) % Size; 
+			const uint bucketIndex = Hasher::Hash(key) % Size;
 			const uint  valueIndex = bucketIndex * BucketSize;
 			const uint8 bucketSize = numElements[bucketIndex];
-			assert((bucketIndex < BucketSize || valueIndex < (Size * BucketSize)), "too many object pushed please increase Size or BucketSize");
-			
+
 			for (uint8 i = 0; i < bucketSize; ++i)
 			{
 				if (keys[valueIndex + i] == key)
@@ -80,23 +77,21 @@ namespace HS
 
 		HSCONSTEXPR bool Contains(const Key& key) const
 		{
-			const uint bucketIndex = Hasher::Hash(key) % Size; 
+			const uint bucketIndex = Hasher::Hash(key) % Size;
 			const uint  valueIndex = bucketIndex * BucketSize;
 			const uint8 bucketSize = numElements[bucketIndex];
-			assert((bucketIndex < BucketSize || valueIndex < (Size * BucketSize)), "too many object pushed please increase Size or BucketSize");
 
 			for (uint8 i = 0; i < bucketSize; ++i)
 				if (keys[valueIndex + i] == key) return true;
-			
+
 			return false;
 		}
 
-		HSCONSTEXPR Value* Find(const Key& key) const
+		HSCONSTEXPR Value* Find(const Key& key)
 		{
-			const uint bucketIndex = Hasher::Hash(key) % Size; 
+			const uint bucketIndex = Hasher::Hash(key) % Size;
 			const uint  valueIndex = bucketIndex * BucketSize;
 			uint8 currBucketIndex = numElements[bucketIndex];
-			assert((bucketIndex < BucketSize || valueIndex < (Size* BucketSize)), "too many object pushed please increase Size or BucketSize");
 
 			while (currBucketIndex--)
 			{
@@ -105,19 +100,38 @@ namespace HS
 			return nullptr;
 		}
 
+		HSCONSTEXPR Value* FindOrCreate(const Key& key)
+		{
+			const uint bucketIndex = Hasher::Hash(key) % Size;
+			uint  valueIndex = bucketIndex * BucketSize;
+			uint8 currBucketIndex = numElements[bucketIndex];
+			while (currBucketIndex--)
+			{
+				if (keys[valueIndex + currBucketIndex] == key) return &arr[valueIndex + currBucketIndex];
+			}
+
+			valueIndex += numElements[bucketIndex]++;
+
+			assert(bucketIndex < BucketSize); // BucketSize is small
+			assert(valueIndex  < (Size * BucketSize)); // Size is small
+
+			keys[valueIndex] = key;
+			arr[valueIndex] = Value();
+			return &arr[valueIndex] ;
+		}
+
 		HSCONSTEXPR inline bool Empty() const
 		{
 			int currentBucket = Size;
 			while (currentBucket--) if (numElements[currentBucket]) return true;
-			return true;
+			return false;
 		}
 
 		HSCONSTEXPR int8 Count(const Key& key) const
 		{
-			const uint bucketIndex = Hasher::Hash(key) % Size; 
+			const uint bucketIndex = Hasher::Hash(key) % Size;
 			const uint  valueIndex = bucketIndex * BucketSize;
 			const uint8 bucketSize = numElements[bucketIndex];
-			assert((bucketIndex < BucketSize || valueIndex < (Size* BucketSize)), "too many object pushed please increase Size or BucketSize");
 			int8 count = 0;
 
 			for (uint8 i = 0; i < bucketSize; ++i)
@@ -126,24 +140,25 @@ namespace HS
 			return count;
 		}
 
-		HSCONSTEXPR inline int8 CountBucket(const Key& key) const
+		[[maybe_unused]] HSCONSTEXPR int8 CountBucket(const Key& key) const
 		{
 			return numElements[Hasher::Hash(key) % Size];
 		}
 
-		HSCONSTEXPR void Iterate(void(*Func)(float&))
+		template<typename Callable_t>
+		HSCONSTEXPR void Iterate(const Callable_t& func)
 		{
 			int currentBucket = Size;
 			while (currentBucket--)
 			{
 				for (int i = 0; i < numElements[currentBucket]; ++i)
 				{
-					Func(arr[currentBucket * BucketSize + i]);
+					func(arr[currentBucket * BucketSize + i]);
 				}
 			}
 		}
 
-		HSCONSTEXPR void Clear() 
+		HSCONSTEXPR void Clear()
 		{
 			int currentBucket = Size;
 			while (currentBucket--)
@@ -151,6 +166,20 @@ namespace HS
 				while (numElements[currentBucket]--)
 				{
 					arr[currentBucket * BucketSize + numElements[currentBucket]].~Value();
+				}
+				numElements[currentBucket] = 0;
+			}
+		}
+
+		HSCONSTEXPR void Reload()
+		{
+			int currentBucket = Size;
+			while (currentBucket--)
+			{
+				while (numElements[currentBucket]--)
+				{
+					arr[currentBucket * BucketSize + numElements[currentBucket]].~Value();
+					arr[currentBucket * BucketSize + numElements[currentBucket]] = Value();
 				}
 				numElements[currentBucket] = 0;
 			}
@@ -175,7 +204,7 @@ namespace HS
 			const StaticHashMap* hashMap;
 		public:
 			HSCONSTEXPR Iterator(const StaticHashMap* map, int cBucketIndex, int cIndex)
-			: hashMap(map), currBucketIndex(cBucketIndex), currIndex(cIndex) { }
+				: hashMap(map), currBucketIndex(cBucketIndex), currIndex(cIndex) { }
 
 			HSCONSTEXPR Value& operator*() const
 			{
@@ -193,22 +222,22 @@ namespace HS
 			// postfix increment
 			HSCONSTEXPR Iterator operator++(int amount)
 			{
-				currBucketIndex += currIndex++ >= hashMap->numElements[currBucketIndex];
+				currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
 				currIndex *= currIndex < hashMap->numElements[currBucketIndex];
 				return *this;
 			}
 
-			HSCONSTEXPR Value* operator->() 
+			HSCONSTEXPR Value* operator->()
 			{
 				return &hashMap->arr[currBucketIndex * BucketSize + currIndex];
 			}
 
-			HSCONSTEXPR bool operator == (const Iterator& other) const 
+			HSCONSTEXPR bool operator == (const Iterator& other) const
 			{
 				return currBucketIndex == other.currBucketIndex && currIndex == other.currIndex;
 			}
 
-			HSCONSTEXPR bool operator != (const Iterator& other) const 
+			HSCONSTEXPR bool operator != (const Iterator& other) const
 			{
 				return currBucketIndex != other.currBucketIndex || currIndex != other.currIndex;
 			}
@@ -224,13 +253,67 @@ namespace HS
 			}
 		};
 
+		class ConstIterator
+		{
+		public:
+			int currBucketIndex = 0;
+			mutable int currIndex = 0;
+			const StaticHashMap* hashMap;
+		public:
+			HSCONSTEXPR ConstIterator(const StaticHashMap* map, int cBucketIndex, int cIndex)
+				: hashMap(map), currBucketIndex(cBucketIndex), currIndex(cIndex) { }
+
+			HSCONSTEXPR const Value& operator*() const
+			{
+				return hashMap->arr[currBucketIndex * BucketSize + currIndex];
+			}
+
+			// prefix increment
+			HSCONSTEXPR const ConstIterator& operator++() const
+			{
+				currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
+				currIndex *= currIndex < hashMap->numElements[currBucketIndex];
+				return *this;
+			}
+
+			// postfix increment
+			HSCONSTEXPR const ConstIterator operator++(int amount) const
+			{
+				currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
+				currIndex *= currIndex < hashMap->numElements[currBucketIndex];
+				return *this;
+			}
+
+			HSCONSTEXPR const Value* operator->() const
+			{
+				return &hashMap->arr[currBucketIndex * BucketSize + currIndex];
+			}
+
+			HSCONSTEXPR bool operator == (const ConstIterator& other) const
+			{
+				return currBucketIndex == other.currBucketIndex && currIndex == other.currIndex;
+			}
+			HSCONSTEXPR bool operator != (const ConstIterator& other) const
+			{
+				return currBucketIndex != other.currBucketIndex || currIndex != other.currIndex;
+			}
+			HSCONSTEXPR bool operator < (const ConstIterator& other) const
+			{
+				return currBucketIndex * BucketSize + currIndex < other.currBucketIndex * BucketSize + other.currIndex;
+			}
+			HSCONSTEXPR bool operator > (const ConstIterator& other) const
+			{
+				return currBucketIndex * BucketSize + currIndex > other.currBucketIndex * BucketSize + other.currIndex;
+			}
+		};
+
 		HSCONSTEXPR Iterator begin() const { return Iterator(this, 0, 0); }
 		HSCONSTEXPR Iterator end()   const { return Iterator(this, Size-1, BucketSize-1); }
-		
-		HSCONSTEXPR Iterator cbegin() const { return Iterator(this, 0, 0); }
-		HSCONSTEXPR Iterator cend()   const { return Iterator(this, Size-1, BucketSize-1); }
 
-	};	
+		HSCONSTEXPR ConstIterator cbegin() const { return Iterator(this, 0, 0); }
+		HSCONSTEXPR ConstIterator cend()   const { return Iterator(this, Size-1, BucketSize-1); }
+
+	};
 
 	template<typename Key, typename Value, int Size = 61, int8 BucketSize = 4>
 	class StaticSet : public StaticHashMap<Key, Value, Size, BucketSize>
