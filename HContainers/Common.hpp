@@ -24,11 +24,9 @@
 // you may don't want to use constexpr because of compile times.
 #define HUSTLE_USE_CONSTEXPR
 
-#ifdef HUSTLE_USE_CONSTEXPR
-#	define HSCONSTEXPR constexpr
-#else
-#	define HSCONSTEXPR 
-#endif
+#define HUSTLE_NAMESPACE namespace HS {
+#define HUSTLE_END_NAMESPACE }
+
 
 #ifndef VECTORCALL
 #   ifdef _MSC_VER
