@@ -54,17 +54,17 @@ namespace HS
 		int size = 0;
 	public:
 		T arr[MaxSize];
-		HSCONSTEXPR FixedStack() { }
+		constexpr FixedStack() { }
 
-		HSCONSTEXPR void Push(const T& value) { arr[size++] = value; }
-		HSCONSTEXPR T&  Pop() { return arr[--size]; }
+		constexpr void Push(const T& value) { arr[size++] = value; }
+		constexpr T&  Pop() { return arr[--size]; }
 
-		HSCONSTEXPR  bool Any() const { return size > 0; }
+		constexpr  bool Any() const { return size > 0; }
 
-		HSCONSTEXPR T* begin() { return arr; }
-		HSCONSTEXPR T* end()   { return arr + size; }
-		HSCONSTEXPR const T* cbegin() const { return arr; }
-		HSCONSTEXPR const T* cend()   const { return arr + size; }
+		constexpr T* begin() { return arr; }
+		constexpr T* end()   { return arr + size; }
+		constexpr const T* cbegin() const { return arr; }
+		constexpr const T* cend()   const { return arr + size; }
 	};
 
 }

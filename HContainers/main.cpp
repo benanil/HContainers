@@ -8,6 +8,7 @@
 #include "BinaryTree.hpp"
 #include "Pair.hpp"
 #include <unordered_map>
+#include <queue>
 
 using namespace HS;
 
@@ -109,63 +110,59 @@ bool RemoveLessThan2(const int& i) { return i < 5; }
 
 int main()
 {
+	
 
-	struct Value 
-	{
-		float f;
-		Value() : f(00.0f) { }
-		Value(const Value& other) : f(other.f) {}
-		Value(float val) : f(val) { }
-	};
 
 	{
 		std::cout << "Static Hash Map" << std::endl;
-		CSTIMER("Static Hash Map")
+		CSTIMER("Static Hash Map Total: ")
+		static StaticHashMap<int, float, 150'000, 6> hashMap;
 		float sum = 0;
 
-		StaticHashMap<int, Value> hashMap;
-		
 		{
-			CSTIMER("initialize: ")
-			for (int i = 0; i < 62 * 4; ++i)
-				hashMap.Emplace(i, Value((float)i * 0.5f));
-		}
-
-		// hashMap.Initialize();
-		// hashMap.Clear();
-
-		{
-			CSTIMER("iterate: ")
-			for (int i = 0; i < 62 * 4; ++i)
-				sum += hashMap.arr[i].f;
+			CSTIMER("insert: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				hashMap.Insert(i, (float)i * 0.5f);
 		}
 		{
-			CSTIMER("removing: ")
-			for (int i = 0; i < 62 * 4; ++i) hashMap.Remove(i);
+			CSTIMER("find: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				sum += *hashMap.Find(i);
+		}
+		{
+			CSTIMER("removing: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				hashMap.Remove(i);
 		}
 		std::cout << sum << std::endl;
 	}
-	
+
 	{
-		std::cout << "unordered_map" << std::endl;
-		CSTIMER("unordered_map End")
+		
+		std::cout << "unordered_map start" << std::endl;
+		CSTIMER("unordered_map total: ");
+		std::unordered_map<int, float> shashMap;
+		shashMap.reserve(150'000);
+
 		float sum = 0;
 
-		std::unordered_map<int, float> hashMap;
 		{
-			CSTIMER("initialize: ")
-			for (int i = 0; i < 62 * 4; ++i)
-				hashMap.emplace(i, (float)i * 0.5f);
+			CSTIMER("insert: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				shashMap.emplace(i, (float)i * 0.5f);
 		}
 		{
-			CSTIMER("iterate: ")
-			for (auto& it : hashMap) sum += it.second;
+			CSTIMER("find: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				sum += shashMap[i];
 		}
 		{
-			CSTIMER("removing: ")
-			for (int i = 0; i < 62 * 4; ++i) hashMap.erase(i);
+			CSTIMER("removing: ");
+			for (int i = -70'000; i < 70'000; ++i)
+				shashMap.erase(i);
 		}
 		std::cout << sum << std::endl;
+		shashMap.clear();
 	}
 
 	return 0;

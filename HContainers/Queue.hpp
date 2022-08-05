@@ -192,16 +192,16 @@ namespace HS
 		T ptr[MaxSize];
 	public:
 
-		HSCONSTEXPR FixedQueue() { }
+		constexpr FixedQueue() { }
 
-		HSCONSTEXPR int GetSize() const { return front - rear; }
-		HSCONSTEXPR bool Any() const { return GetSize() > 0; }
+		constexpr int GetSize() const { return front - rear; }
+		constexpr bool Any() const { return GetSize() > 0; }
 
-		HSCONSTEXPR  void Enqueue(T value) { ptr[front++] = value; }
+		constexpr void Enqueue(T value) { ptr[front++] = value; }
 
-		HSCONSTEXPR  T Dequeue() { return ptr[rear++]; }
+		constexpr T Dequeue() { return ptr[rear++]; }
 
-		HSCONSTEXPR void Squeeze()
+		constexpr void Squeeze()
 		{
 			const int newSize = GetSize() - rear;
 			int first = 0, second = rear;
