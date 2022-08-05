@@ -46,7 +46,6 @@ public:
 		arr[arrIndex] = std::move(value);
 	}
 
-	template<typename... T>
 	inline void Emplace(const Key& key, T&&... values)
 	{
 		uint bucketIndex = Hasher::Hash(key) % Size;
@@ -94,9 +93,9 @@ public:
 		uint8 currBucketIndex = numElements[bucketIndex];
 
 		while (currBucketIndex--)
-		{
-			if (keys[valueIndex + currBucketIndex] == key) return &arr[valueIndex + currBucketIndex];
-		}
+			if (keys[valueIndex + currBucketIndex] == key) 
+				return &arr[valueIndex + currBucketIndex];
+		
 		return nullptr;
 	}
 
@@ -105,10 +104,10 @@ public:
 		const uint bucketIndex = Hasher::Hash(key) % Size;
 		uint  valueIndex = bucketIndex * BucketSize;
 		uint8 currBucketIndex = numElements[bucketIndex];
+		
 		while (currBucketIndex--)
-		{
-			if (keys[valueIndex + currBucketIndex] == key) return &arr[valueIndex + currBucketIndex];
-		}
+			if (keys[valueIndex + currBucketIndex] == key)
+				return &arr[valueIndex + currBucketIndex];
 
 		valueIndex += numElements[bucketIndex]++;
 
@@ -149,12 +148,8 @@ public:
 	{
 		int currentBucket = Size;
 		while (currentBucket--)
-		{
 			for (int i = 0; i < numElements[currentBucket]; ++i)
-			{
 				func(arr[currentBucket * BucketSize + i]);
-			}
-		}
 	}
 
 	void Clear()
@@ -190,52 +185,7 @@ public:
 		for (int i = 0; i < Size * BucketSize; ++i) arr[i] = Value();
 	}
 
-	inline Value& operator[](const Key& key) const
-	{
-		return *Find(key);
-	}
-
-	class Iterator
-	{
-	public:
-		int currBucketIndex = 0;
-		int currIndex = 0;
-		const StaticHashMap* hashMap;
-	public:
-		Iterator(const StaticHashMap* map, int cBucketIndex, int cIndex)
-			: hashMap(map), currBucketIndex(cBucketIndex), currIndex(cIndex) { }
-
-		Value& operator*() const {
-			return hashMap->arr[currBucketIndex * BucketSize + currIndex];
-		}
-		// prefix increment
-		Iterator& operator++() {
-			currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
-			currIndex *= currIndex < hashMap->numElements[currBucketIndex];
-			return *this;
-		}
-		// postfix increment
-		Iterator operator++(int amount) {
-			currBucketIndex += ++currIndex >= hashMap->numElements[currBucketIndex];
-			currIndex *= currIndex < hashMap->numElements[currBucketIndex];
-			return *this;
-		}
-		
-		Value* operator->() { return &hashMap->arr[currBucketIndex * BucketSize + currIndex]; }
-
-		bool operator == (const Iterator& other) const {
-			return currBucketIndex == other.currBucketIndex && currIndex == other.currIndex;
-		}
-		bool operator != (const Iterator& other) const {
-			return currBucketIndex != other.currBucketIndex || currIndex != other.currIndex;
-		}
-		bool operator < (const Iterator& other) const {
-			return currBucketIndex * BucketSize + currIndex < other.currBucketIndex * BucketSize + other.currIndex;
-		}
-		bool operator > (const Iterator& other) const {
-			return currBucketIndex * BucketSize + currIndex > other.currBucketIndex * BucketSize + other.currIndex;
-		}
-	};
+	inline Value& operator[](const Key& key) const { return *Find(key); }
 
 	class ConstIterator
 	{
@@ -278,9 +228,6 @@ public:
 			return currBucketIndex * BucketSize + currIndex > other.currBucketIndex * BucketSize + other.currIndex;
 		}
 	};
-
-	Iterator begin() const { return Iterator(this, 0, 0); }
-	Iterator end()   const { return Iterator(this, Size-1, BucketSize-1); }
 
 	ConstIterator cbegin() const { return Iterator(this, 0, 0); }
 	ConstIterator cend()   const { return Iterator(this, Size-1, BucketSize-1); }
