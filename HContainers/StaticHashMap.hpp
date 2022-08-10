@@ -46,16 +46,6 @@ public:
 		arr[arrIndex] = std::move(value);
 	}
 
-	inline void Emplace(const Key& key, T&&... values)
-	{
-		uint bucketIndex = Hasher::Hash(key) % Size;
-		uint arrIndex = bucketIndex * BucketSize + (numElements[bucketIndex]++);
-		assert(numElements[bucketIndex] <= BucketSize); // BucketSize is small
-
-		keys[arrIndex] = key;
-		arr[arrIndex] = Value(std::forward<T>(values)...);
-	}
-
 	// returns true if removed correctly
 	bool Remove(const Key& key)
 	{
@@ -138,7 +128,7 @@ public:
 		return count;
 	}
 
-	[[maybe_unused]] int8 CountBucket(const Key& key) const
+	int8 CountBucket(const Key& key) const
 	{
 		return numElements[Hasher::Hash(key) % Size];
 	}

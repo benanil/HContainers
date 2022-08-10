@@ -81,12 +81,12 @@ namespace HS
 {
 	namespace Compare
 	{
-		template<typename T> bool Less(T a, T b) { return a < b; }
-		template<typename T> bool Equal(T a, T b) { return a == b; }
-		template<typename T> bool NotEqual(T a, T b) { return !Equal(a,b); }
-		template<typename T> bool Greater(T a, T b) { return !Less(a, b) && !Equal(a, b); }
-		template<typename T> bool GreaterEqual(T a, T b) { return !Less(a, b); }
-		template<typename T> bool LessEqual(T a, T b) { return Less(a, b) && Equal(a, b); }
+		template<typename T> inline bool Less(T a, T b) { return a < b; }
+		template<typename T> inline bool Equal(T a, T b) { return a == b; }
+		template<typename T> inline bool NotEqual(T a, T b) { return !Equal(a,b); }
+		template<typename T> inline bool Greater(T a, T b) { return !Less(a, b) && !Equal(a, b); }
+		template<typename T> inline bool GreaterEqual(T a, T b) { return !Less(a, b); }
+		template<typename T> inline bool LessEqual(T a, T b) { return Less(a, b) && Equal(a, b); }
 	
 		/*for qsort*/ template<typename T>
 		int QLess(const void* a, const void* b) { return *(T*)a < *(T*)b; }
@@ -96,22 +96,8 @@ namespace HS
 
 	namespace Hasher
 	{
-		template <typename T> ulong Hash(const T& val)
-		{
-			static_assert("you must define custom hash function");
-			return 0;
-		}
-
-		template <> ulong Hash(const float& f)
-		{
-			union Converter { float fVal; uint uval; } converter;
-			return converter.uval;
-		}
-
-		template <> ulong Hash(const int& in)
-		{
-			return (ulong)in;
-		}
+		template <typename T> inline uint Hash(const T& val) { return 0u; }
+		template <> inline uint Hash(const int& in) { return (uint)in; }
 	}
 
 	enum class HArrayResult : int
@@ -161,6 +147,12 @@ namespace HS
 		while (count--) a[count] = value;
 	}
 	
+	template<typename T>
+	constexpr void ArrayClear(T* a, T value, int count)
+	{
+		while (count--) a[count].~T();
+	}
+
 	template<typename T>
 	constexpr void ArraySetRef(T* a, const T& value, int count)
 	{

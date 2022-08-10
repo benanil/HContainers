@@ -19,6 +19,8 @@ using namespace HS;
 #   define CSTIMER(message) // Timer timer = Timer(message);
 #endif
 
+
+
 struct Timer
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start_point;
@@ -108,11 +110,9 @@ typedef Graph<City, Road> CountryGraph;
 
 bool RemoveLessThan2(const int& i) { return i < 5; }
 
+#ifdef HCONTAINERS_TEST
 int main()
 {
-	
-
-
 	{
 		std::cout << "Static Hash Map" << std::endl;
 		CSTIMER("Static Hash Map Total: ")
@@ -320,3 +320,6 @@ int main()
 
 	return bt.Search(2) != nullptr; // binary tree search
 }
+
+#endif
+	
